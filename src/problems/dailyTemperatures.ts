@@ -79,21 +79,78 @@ export const dailyTemperatures: Problem<I, S> = {
   ],
   scene({ t, i, stack, res }) {
     const marks: Record<number, 'focus' | 'done'> = {};
-    for (const j of stack) marks[j] = 'done';
+    for (let k = 0; k < Math.min(i, t.length); k++) marks[k] = 'done';
     if (i < t.length) marks[i] = 'focus';
     return [
       {
         kind: 'array',
         id: 't',
-        label: L('temperatures', 'temperatures'),
+        label: L('temperatures（每一塊都可以拖曳）', 'temperatures (every tile can be dragged)'),
         values: t,
         bars: true,
         pointers: [{ name: 'i', index: i, color: 'a' }],
         marks,
+        dragPrefix: 't',
+        dragLabels: t.map((v) => `${v}°`),
       },
-      { kind: 'stack', id: 'stack', label: L('stack（溫度 @ 第幾天）', 'stack (temp @ day)'), items: stack.map((j) => `${t[j]} @ ${j}`) },
-      { kind: 'array', id: 'res', label: L('res', 'res'), values: res },
+      {
+        kind: 'stack',
+        id: 'stack',
+        label: L('stack', 'stack'),
+        items: stack.map((j) => `${t[j]}°`),
+        itemSub: stack.map((j) => L(`第 ${j} 天`, `day ${j}`)),
+        dragPrefix: 's',
+        dropId: 'stack',
+      },
+      { kind: 'array', id: 'res', label: L('res（要等幾天）', 'res (days to wait)'), values: res, dropPrefix: 'res' },
     ];
+  },
+  drag: {
+    instructions: L(
+      '把「今天」的溫度拖進 stack；或把 stack 頂端那塊拖到 res 裡「那一天」的格子結算。也可以先點方塊，再點目的地。',
+      "Drag today's temperature into the stack, or drag the stack's top tile onto that day's res cell to settle it. You can also tap a tile, then tap its destination.",
+    ),
+    moves({ t, i, stack }) {
+      const top = stack[stack.length - 1];
+      if (stack.length > 0 && t[i] > t[top]) return [{ action: 'pop', from: `s:${stack.length - 1}`, to: `res:${top}` }];
+      return [{ action: 'push', from: `t:${i}`, to: 'stack' }];
+    },
+    whyWrong({ t, i, stack }, from, to) {
+      const [kind, idxS] = from.split(':');
+      const idx = Number(idxS);
+      const topPos = stack.length - 1;
+      const top = stack[topPos];
+      const needPop = stack.length > 0 && t[i] > t[top];
+      if (kind === 't') {
+        if (idx < i)
+          return L(`第 ${idx} 天（${t[idx]}°）已經處理過了。現在輪到第 ${i} 天（${t[i]}°）。`, `Day ${idx} (${t[idx]}°) was already handled. It's day ${i} (${t[i]}°) now.`);
+        if (idx > i)
+          return L(`還沒輪到第 ${idx} 天。我們由左往右一天一天看，現在是第 ${i} 天（${t[i]}°）。`, `Day ${idx} hasn't come yet. We scan left to right, and it's day ${i} (${t[i]}°) now.`);
+        if (needPop)
+          return L(
+            `今天 ${t[i]}° 比頂端第 ${top} 天的 ${t[top]}° 熱！先幫頂端那天結算：把頂端那塊拖到 res[${top}]。`,
+            `Today at ${t[i]}° is warmer than day ${top} at ${t[top]}° on top! Settle that day first: drag the top tile onto res[${top}].`,
+          );
+        return L(
+          'res 記錄的是「某一天等了幾天」。今天才剛開始等，要先放進 stack。',
+          'res records how long a day waited. Today has only just started waiting, so it goes into the stack.',
+        );
+      }
+      // dragging a stack tile
+      if (idx !== topPos) return L('只能拿 stack 最上面那一塊。', 'You can only take the tile on top of the stack.');
+      if (!needPop)
+        return L(
+          `今天 ${t[i]}° 沒有比頂端的 ${t[top]}° 熱，頂端那天還要繼續等，現在不能結算。`,
+          `Today at ${t[i]}° is not warmer than ${t[top]}° on top. That day keeps waiting, so it can't be settled yet.`,
+        );
+      if (to === 'stack')
+        return L(`頂端那天等到更熱的日子了，要把它拖到 res[${top}] 結算。`, `The top day found a warmer day. Drag it onto res[${top}] to settle it.`);
+      const k = Number(to.split(':')[1]);
+      return L(
+        `這塊是第 ${top} 天的溫度，結果要寫在 res[${top}]，不是 res[${k}]。`,
+        `This tile is day ${top}'s temperature, so its answer goes in res[${top}], not res[${k}].`,
+      );
+    },
   },
   result: (st) => L(`res = [${st.res.join(', ')}]`, `res = [${st.res.join(', ')}]`),
   code: `def dailyTemperatures(self, temperatures: List[int]) -> List[int]:

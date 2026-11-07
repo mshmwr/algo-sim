@@ -45,6 +45,12 @@ export interface ArrayLayer {
   marks?: Record<number, CellMark>;
   /** Draw values as vertical bars (heights / prices). */
   bars?: boolean;
+  /** Practice drag & drop: cells become draggable as `${dragPrefix}:${i}`. */
+  dragPrefix?: string;
+  /** Practice drag & drop: cells become drop targets as `${dropPrefix}:${i}`. */
+  dropPrefix?: string;
+  /** Text shown on the floating tile while dragging a cell. */
+  dragLabels?: string[];
 }
 
 export interface StackLayer {
@@ -52,6 +58,12 @@ export interface StackLayer {
   id: string;
   label: L10n;
   items: (string | number)[];
+  /** Small caption under each item (e.g. "day 3"). */
+  itemSub?: L10n[];
+  /** Items become draggable as `${dragPrefix}:${index}` (0 = bottom). */
+  dragPrefix?: string;
+  /** The whole stack is a drop target with this id. */
+  dropId?: string;
 }
 
 export interface SetLayer {
@@ -70,6 +82,22 @@ export interface VarsLayer {
 export type Layer = ArrayLayer | StackLayer | SetLayer | VarsLayer;
 
 // ---------- Problem definition ----------
+
+/** A correct drag & drop move: dragging `from` onto `to` performs `action`. */
+export interface DragMove {
+  action: string;
+  from: string;
+  to: string;
+}
+
+export interface DragSpec<S> {
+  /** One-line rule reminder shown above the stage. */
+  instructions: L10n;
+  /** The moves that count as correct in this state (each maps to a correct action). */
+  moves(state: S): DragMove[];
+  /** Why dropping `from` onto `to` is wrong. */
+  whyWrong(state: S, from: string, to: string): L10n;
+}
 
 export interface ActionOption {
   id: string;
@@ -117,6 +145,9 @@ export interface Problem<I = any, S = any> {
   /** Python reference solution; lineOf maps action id -> 1-based line. */
   code: string;
   lineOf: Record<string, number>;
+
+  /** When present, practice mode uses drag & drop instead of buttons. */
+  drag?: DragSpec<S>;
 
   /** Final answer extracted from a finished state. */
   answer(state: S): unknown;

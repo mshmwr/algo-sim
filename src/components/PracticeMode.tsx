@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { hintsFor, judge } from '../core/engine';
-import type { L10n, Problem } from '../core/types';
+import { hintsFor, judge, judgeMove } from '../core/engine';
+import { L, type L10n, type Problem } from '../core/types';
 import { ui, useLang } from '../i18n';
 import { CodePanel } from './CodePanel';
+import { DemoGhost, DragContext, FloatingTile, usePointerDrag } from './drag';
 import { Scene } from './Scene';
 
 interface Props {
@@ -23,8 +24,12 @@ const isTyping = (e: KeyboardEvent) => {
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT');
 };
 
+const DRAG_HINT_SRC = L('拿起發光的那一塊。', 'Pick up the glowing tile.');
+const DRAG_HINT_DEMO = L('示範：把發光的方塊拖到發光的位置。', 'Demo: drag the glowing tile onto the glowing spot.');
+
 export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Props) {
   const { t } = useLang();
+  const isDrag = !!problem.drag;
   const initial = useMemo(() => problem.init(input), [problem, input]);
   const [state, setState] = useState(initial);
   const [mistakes, setMistakes] = useState(0);
@@ -35,6 +40,39 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
   const [line, setLine] = useState<number | null>(problem.lineOf.init ?? null);
   const [shake, setShake] = useState(0);
   const reported = useRef(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  const done = problem.isDone(state);
+
+  const record = (ok: boolean, message: L10n, next: unknown, action: string | null) => {
+    const entry = { ok, message };
+    setFeedback(entry);
+    if (ok) {
+      setState(next);
+      setSteps((s) => s + 1);
+      setHintLevel(0);
+      if (action) setLine(problem.lineOf[action] ?? null);
+      setLog((l) => [...l, entry]);
+    } else {
+      setMistakes((m) => m + 1);
+      setShake((s) => s + 1);
+    }
+  };
+
+  const act = (id: string) => {
+    if (done) return;
+    const j = judge(problem, state, id);
+    record(j.ok, j.message, j.next, id);
+  };
+
+  const attempt = (from: string, to: string) => {
+    if (done || !problem.drag) return false;
+    const j = judgeMove(problem, state, from, to);
+    record(j.ok, j.message, j.next, j.move?.action ?? null);
+    return j.ok;
+  };
+
+  const drag = usePointerDrag(isDrag && !done, attempt);
 
   const reset = () => {
     setState(initial);
@@ -44,14 +82,11 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
     setFeedback(null);
     setLog([]);
     setLine(problem.lineOf.init ?? null);
+    drag.clear();
     reported.current = false;
   };
 
   useEffect(reset, [initial]);
-
-  const done = problem.isDone(state);
-  const options = problem.options(state);
-  const hints = done ? [] : hintsFor(problem, state);
 
   useEffect(() => {
     if (done && !reported.current) {
@@ -60,22 +95,16 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
     }
   }, [done, mistakes, onSolved]);
 
-  const act = (id: string) => {
-    if (done) return;
-    const j = judge(problem, state, id);
-    const entry = { ok: j.ok, message: j.message };
-    setFeedback(entry);
-    if (j.ok) {
-      setState(j.next);
-      setSteps((s) => s + 1);
-      setHintLevel(0);
-      setLine(problem.lineOf[id] ?? null);
-      setLog((l) => [...l, entry]);
-    } else {
-      setMistakes((m) => m + 1);
-      setShake((s) => s + 1);
-    }
-  };
+  const options = problem.options(state);
+  const move = !done && problem.drag ? problem.drag.moves(state)[0] : null;
+  const hints: L10n[] = done
+    ? []
+    : isDrag
+      ? (() => {
+          const h = problem.hints(state);
+          return [h[0], L(`${h[1]?.zh ?? ''} ${DRAG_HINT_SRC.zh}`.trim(), `${h[1]?.en ?? ''} ${DRAG_HINT_SRC.en}`.trim()), DRAG_HINT_DEMO];
+        })()
+      : hintsFor(problem, state);
 
   const showHint = () => setHintLevel((h) => Math.min(h + 1, hints.length));
 
@@ -83,8 +112,8 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
   actRef.current = act;
   const hintRef = useRef(showHint);
   hintRef.current = showHint;
-  const optsRef = useRef(options);
-  optsRef.current = options;
+  const optsRef = useRef(isDrag ? [] : options);
+  optsRef.current = isDrag ? [] : options;
 
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
@@ -102,10 +131,38 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [log]);
 
+  const dragUI = {
+    enabled: isDrag && !done,
+    selected: drag.selected,
+    hover: drag.hover,
+    dragging: drag.dragging,
+    glowFrom: move && hintLevel >= 2 ? move.from : null,
+    glowTo: move && hintLevel >= 3 ? move.to : null,
+  };
+
+  const demoLabel = (() => {
+    if (!move || hintLevel < 3) return '';
+    const el = stageRef.current?.querySelector(`[data-drag-id="${CSS.escape(move.from)}"]`) as HTMLElement | null;
+    return el?.dataset.dragLabel ?? '';
+  })();
+
   return (
     <div className="mode-grid">
       <div className="stage">
-        <Scene layers={problem.scene(state)} />
+        {isDrag && !done && <div className="drag-instructions">✋ {t(problem.drag!.instructions)}</div>}
+
+        <DragContext.Provider value={dragUI}>
+          <div
+            ref={stageRef}
+            className={`drag-stage${isDrag && !done ? ' drag-on' : ''}${shake && feedback && !feedback.ok ? ' shake' : ''}`}
+            key={isDrag ? `s${shake}` : 'static'}
+            onPointerDown={drag.onPointerDown}
+          >
+            <Scene layers={problem.scene(state)} />
+            {move && hintLevel >= 3 && <DemoGhost root={stageRef} from={move.from} to={move.to} label={demoLabel} />}
+          </div>
+        </DragContext.Provider>
+        <FloatingTile f={drag.floating} />
 
         <div className="practice-stats">
           <span>
@@ -140,17 +197,19 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
             </div>
           </div>
         ) : (
-          <>
-            <div className="prompt">{t(ui.yourMove)}</div>
-            <div className="actions" key={shake} data-shake={shake > 0 && feedback && !feedback.ok ? 'y' : 'n'}>
-              {options.map((o, i) => (
-                <button key={o.id} className="action-btn" onClick={() => act(o.id)}>
-                  <kbd>{i + 1}</kbd>
-                  {t(o.label)}
-                </button>
-              ))}
-            </div>
-          </>
+          !isDrag && (
+            <>
+              <div className="prompt">{t(ui.yourMove)}</div>
+              <div className="actions" key={shake} data-shake={shake > 0 && feedback && !feedback.ok ? 'y' : 'n'}>
+                {options.map((o, i) => (
+                  <button key={o.id} className="action-btn" onClick={() => act(o.id)}>
+                    <kbd>{i + 1}</kbd>
+                    {t(o.label)}
+                  </button>
+                ))}
+              </div>
+            </>
+          )
         )}
 
         {feedback && !done && (
@@ -185,7 +244,7 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
             </ol>
           </details>
         )}
-        <p className="kbd-hint">{t(ui.keyboardPractice)}</p>
+        <p className="kbd-hint">{t(isDrag ? ui.keyboardDrag : ui.keyboardPractice)}</p>
       </div>
       <CodePanel code={problem.code} line={line} />
     </div>

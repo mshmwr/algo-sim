@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildTrace, hintsFor, judge, MAX_STEPS } from '../core/engine';
+import { buildTrace, dragIds, hintsFor, judge, judgeMove, MAX_STEPS } from '../core/engine';
 import { CATEGORIES } from '../core/categories';
 import { PROBLEMS } from './index';
 
@@ -62,5 +62,37 @@ describe.each(PROBLEMS.map((p) => [p.id, p] as const))('%s', (_id, p) => {
   it('rejects malformed input', () => {
     expect(p.validate(null)).not.toBeNull();
     expect(p.validate({})).not.toBeNull();
+  });
+});
+
+describe.each(PROBLEMS.filter((p) => p.drag).map((p) => [p.id, p] as const))('%s (drag & drop)', (_id, p) => {
+  it('drag moves match correct actions; every other drop is rejected with a reason', () => {
+    const inputs = [...p.examples, ...Array.from({ length: RUNS }, () => p.random())];
+    for (const input of inputs) {
+      let s = p.init(input);
+      for (let k = 0; k < MAX_STEPS && !p.isDone(s); k++) {
+        const moves = p.drag!.moves(s);
+        const { drags, drops } = dragIds(p.scene(s));
+        expect(moves.length).toBeGreaterThan(0);
+        for (const m of moves) {
+          expect(p.correct(s)).toContain(m.action);
+          expect(drags).toContain(m.from);
+          expect(drops).toContain(m.to);
+        }
+        for (const from of drags)
+          for (const to of drops) {
+            const j = judgeMove(p, s, from, to);
+            const isMove = moves.some((m) => m.from === from && m.to === to);
+            expect(j.ok).toBe(isMove);
+            expect(j.message.zh).not.toMatch(/undefined|NaN/);
+            expect(j.message.en).not.toMatch(/undefined|NaN/);
+            if (!j.ok) expect(j.next).toBe(s);
+          }
+        const m = moves[Math.floor(Math.random() * moves.length)];
+        s = judgeMove(p, s, m.from, m.to).next;
+      }
+      expect(p.isDone(s)).toBe(true);
+      expect(p.verify(input, p.answer(s))).toBe(true);
+    }
   });
 });

@@ -1,4 +1,4 @@
-import { L, type L10n, type Problem } from './types';
+import { L, type DragMove, type L10n, type Layer, type Problem } from './types';
 
 export const MAX_STEPS = 1000;
 
@@ -66,4 +66,32 @@ export function pick(arr: string): string;
 export function pick<T>(arr: readonly T[]): T;
 export function pick<T>(arr: readonly T[] | string): T | string {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+export interface MoveJudgement<S> extends Judgement<S> {
+  move: DragMove | null;
+}
+
+/** Judge a drag & drop move. Wrong moves leave the state unchanged. */
+export function judgeMove<I, S>(p: Problem<I, S>, state: S, from: string, to: string): MoveJudgement<S> {
+  const spec = p.drag!;
+  const move = spec.moves(state).find((m) => m.from === from && m.to === to) ?? null;
+  if (move) return { ok: true, move, next: p.apply(state, move.action), message: p.explain(state, move.action) };
+  return { ok: false, move: null, next: state, message: spec.whyWrong(state, from, to) };
+}
+
+/** All draggable and droppable ids a scene exposes. */
+export function dragIds(layers: Layer[]): { drags: string[]; drops: string[] } {
+  const drags: string[] = [];
+  const drops: string[] = [];
+  for (const l of layers) {
+    if (l.kind === 'array') {
+      if (l.dragPrefix) l.values.forEach((_, i) => drags.push(`${l.dragPrefix}:${i}`));
+      if (l.dropPrefix) l.values.forEach((_, i) => drops.push(`${l.dropPrefix}:${i}`));
+    } else if (l.kind === 'stack') {
+      if (l.dragPrefix) l.items.forEach((_, i) => drags.push(`${l.dragPrefix}:${i}`));
+      if (l.dropId) drops.push(l.dropId);
+    }
+  }
+  return { drags, drops };
 }

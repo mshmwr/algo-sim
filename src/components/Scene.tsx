@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import type { ArrayLayer, Layer, SetLayer, StackLayer, VarsLayer } from '../core/types';
 import { ui, useLang } from '../i18n';
+import { useDraggable, useDroppable } from './drag';
 
 const cellSize = (n: number) => (n > 18 ? 28 : n > 13 ? 34 : 44);
 
@@ -58,7 +60,13 @@ function ArrayView({ layer }: { layer: ArrayLayer }) {
                 .filter(Boolean)
                 .join(' ');
               return (
-                <div key={i} className={cls}>
+                <Cell
+                  key={i}
+                  cls={cls}
+                  dragId={layer.dragPrefix ? `${layer.dragPrefix}:${i}` : undefined}
+                  dropId={layer.dropPrefix ? `${layer.dropPrefix}:${i}` : undefined}
+                  label={layer.dragLabels?.[i] ?? String(v)}
+                >
                   {layer.bars && typeof v === 'number' ? (
                     <>
                       <div className="bar-wrap">
@@ -69,7 +77,7 @@ function ArrayView({ layer }: { layer: ArrayLayer }) {
                   ) : (
                     <span className="cell-val">{v}</span>
                   )}
-                </div>
+                </Cell>
               );
             })}
           </div>
@@ -86,18 +94,47 @@ function ArrayView({ layer }: { layer: ArrayLayer }) {
   );
 }
 
+function Cell({ cls, dragId, dropId, label, children }: { cls: string; dragId?: string; dropId?: string; label: string; children: ReactNode }) {
+  const d = useDraggable(dragId, label);
+  const z = useDroppable(dropId);
+  return (
+    <div className={[cls, d.className, z.className].filter(Boolean).join(' ')} {...d.attrs} {...z.attrs}>
+      {children}
+    </div>
+  );
+}
+
+function StackItem({ v, sub, top, dragId }: { v: string | number; sub?: string; top: boolean; dragId?: string }) {
+  const { t } = useLang();
+  const d = useDraggable(dragId, String(v));
+  return (
+    <div className={['stack-item', top ? 'stack-top' : '', d.className].filter(Boolean).join(' ')} {...d.attrs}>
+      <span>
+        {v}
+        {sub && <small>{sub}</small>}
+      </span>
+      {top && <em>{t(ui.top)}</em>}
+    </div>
+  );
+}
+
 function StackView({ layer }: { layer: StackLayer }) {
   const { t } = useLang();
+  const z = useDroppable(layer.dropId);
+  const n = layer.items.length;
   return (
     <div className="layer layer-stack">
       <div className="layer-label">{t(layer.label)}</div>
-      <div className="stack">
-        {layer.items.length === 0 && <div className="stack-empty">{t(ui.empty)}</div>}
+      <div className={['stack', z.className].filter(Boolean).join(' ')} {...z.attrs}>
+        {n === 0 && <div className="stack-empty">{t(ui.empty)}</div>}
         {layer.items.map((v, i) => (
-          <div key={`${i}:${v}`} className={`stack-item${i === layer.items.length - 1 ? ' stack-top' : ''}`}>
-            <span>{v}</span>
-            {i === layer.items.length - 1 && <em>{t(ui.top)}</em>}
-          </div>
+          <StackItem
+            key={`${i}:${v}`}
+            v={v}
+            sub={layer.itemSub ? t(layer.itemSub[i]) : undefined}
+            top={i === n - 1}
+            dragId={layer.dragPrefix ? `${layer.dragPrefix}:${i}` : undefined}
+          />
         ))}
       </div>
     </div>

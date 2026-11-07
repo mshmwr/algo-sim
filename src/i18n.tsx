@@ -92,6 +92,7 @@ export const ui = {
   pythonCode: L('Python 解法', 'Python solution'),
   keyboardLearn: L('鍵盤：← → 切換步驟，空白鍵播放', 'Keys: ← → to step, Space to play'),
   keyboardPractice: L('鍵盤：數字鍵選擇操作，H 顯示提示', 'Keys: number keys to choose, H for a hint'),
+  keyboardDrag: L('用滑鼠或手指拖曳方塊；也可以點一下方塊，再點目的地。H 顯示提示。', 'Drag tiles with mouse or finger, or tap a tile then tap its destination. H for a hint.'),
   empty: L('（空）', '(empty)'),
   top: L('頂端', 'top'),
   notFound: L('找不到這一題。', 'Problem not found.'),
