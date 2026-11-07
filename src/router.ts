@@ -2,13 +2,17 @@ import { useEffect, useState } from 'react';
 
 export type Route = { page: 'home' } | { page: 'problem'; id: string; mode: 'learn' | 'practice' };
 
+const PRACTICE = '--practice';
+
+/** Hashes are plain names (`#daily-temperatures`, `#daily-temperatures--practice`) so links survive hosts that only pass `#name`. */
 export function parseHash(hash: string): Route {
-  const m = hash.replace(/^#\/?/, '').split('/');
-  if (m[0] === 'p' && m[1]) return { page: 'problem', id: m[1], mode: m[2] === 'practice' ? 'practice' : 'learn' };
-  return { page: 'home' };
+  const h = decodeURIComponent(hash.replace(/^#\/?/, ''));
+  if (!h) return { page: 'home' };
+  if (h.endsWith(PRACTICE)) return { page: 'problem', id: h.slice(0, -PRACTICE.length), mode: 'practice' };
+  return { page: 'problem', id: h, mode: 'learn' };
 }
 
-export const href = (r: Route) => (r.page === 'home' ? '#/' : `#/p/${r.id}/${r.mode}`);
+export const href = (r: Route) => (r.page === 'home' ? '#' : `#${r.id}${r.mode === 'practice' ? PRACTICE : ''}`);
 
 export function useRoute(): Route {
   const [route, setRoute] = useState(() => parseHash(window.location.hash));
