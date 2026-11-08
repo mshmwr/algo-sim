@@ -28,7 +28,7 @@ export type CategoryId =
 
 // ---------- Scene (what the visualizer draws) ----------
 
-export type CellMark = 'good' | 'bad' | 'focus' | 'done';
+export type CellMark = 'good' | 'bad' | 'focus' | 'done' | 'gone';
 export type PointerColor = 'a' | 'b' | 'c';
 
 export interface ArrayLayer {
@@ -51,6 +51,16 @@ export interface ArrayLayer {
   dropPrefix?: string;
   /** Text shown on the floating tile while dragging a cell. */
   dragLabels?: string[];
+  /** Which cells are draggable / droppable (default: all, when a prefix is set). */
+  dragMask?: boolean[];
+  dropMask?: boolean[];
+}
+
+/** Named drop areas such as a discard bin or answer slots. */
+export interface ZonesLayer {
+  kind: 'zones';
+  id: string;
+  zones: { id: string; label: L10n; tone: 'trash' | 'good' | 'bad' }[];
 }
 
 export interface StackLayer {
@@ -79,7 +89,7 @@ export interface VarsLayer {
   vars: { name: string; value: string | number | boolean; highlight?: boolean }[];
 }
 
-export type Layer = ArrayLayer | StackLayer | SetLayer | VarsLayer;
+export type Layer = ArrayLayer | StackLayer | SetLayer | VarsLayer | ZonesLayer;
 
 // ---------- Problem definition ----------
 
@@ -95,9 +105,14 @@ export interface DragSpec<S> {
   instructions: L10n;
   /** The moves that count as correct in this state (each maps to a correct action). */
   moves(state: S): DragMove[];
-  /** Why dropping `from` onto `to` is wrong. */
+  /** Why dropping `from` onto `to` is wrong. `from` is TAP for a tap on a tap zone. */
   whyWrong(state: S, from: string, to: string): L10n;
+  /** Zones that can also be activated by a plain tap (e.g. "it's a palindrome"). */
+  tapZones?: string[];
 }
+
+/** `from` value used for a tap on a zone with nothing picked up. */
+export const TAP = '@tap';
 
 export interface ActionOption {
   id: string;

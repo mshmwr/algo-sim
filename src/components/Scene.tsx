@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { ArrayLayer, Layer, SetLayer, StackLayer, VarsLayer } from '../core/types';
+import type { ArrayLayer, Layer, SetLayer, StackLayer, VarsLayer, ZonesLayer } from '../core/types';
 import { ui, useLang } from '../i18n';
 import { useDraggable, useDroppable } from './drag';
 
@@ -28,7 +28,7 @@ function ArrayView({ layer }: { layer: ArrayLayer }) {
   const barPct = (v: number) => 12 + (88 * (Math.max(v, base) - base)) / Math.max(1, maxV - base);
   const slots = n + (pointers.some((p) => p.index === n) ? 1 : 0);
   // Shrink cells on narrow screens so the whole array fits.
-  const cellCss = `max(24px, min(${cell}px, calc((100vw - 72px) / ${Math.max(slots, 1)})))`;
+  const cellCss = `max(20px, min(${cell}px, calc((100vw - 76px) / ${Math.max(slots, 1)})))`;
 
   return (
     <div className="layer layer-array">
@@ -63,8 +63,8 @@ function ArrayView({ layer }: { layer: ArrayLayer }) {
                 <Cell
                   key={i}
                   cls={cls}
-                  dragId={layer.dragPrefix ? `${layer.dragPrefix}:${i}` : undefined}
-                  dropId={layer.dropPrefix ? `${layer.dropPrefix}:${i}` : undefined}
+                  dragId={layer.dragPrefix && layer.dragMask?.[i] !== false ? `${layer.dragPrefix}:${i}` : undefined}
+                  dropId={layer.dropPrefix && layer.dropMask?.[i] !== false ? `${layer.dropPrefix}:${i}` : undefined}
                   label={layer.dragLabels?.[i] ?? String(v)}
                 >
                   {layer.bars && typeof v === 'number' ? (
@@ -171,13 +171,37 @@ function VarsView({ layer }: { layer: VarsLayer }) {
   );
 }
 
+function Zone({ id, label, tone }: { id: string; label: string; tone: string }) {
+  const z = useDroppable(id);
+  return (
+    <div className={['zone', `zone-${tone}`, z.className].filter(Boolean).join(' ')} {...z.attrs}>
+      {label}
+    </div>
+  );
+}
+
+function ZonesView({ layer }: { layer: ZonesLayer }) {
+  const { t } = useLang();
+  return (
+    <div className="layer layer-zones">
+      {layer.zones.map((z) => (
+        <Zone key={z.id} id={z.id} label={t(z.label)} tone={z.tone} />
+      ))}
+    </div>
+  );
+}
+
 export function Scene({ layers }: { layers: Layer[] }) {
   const arrays = layers.filter((l): l is ArrayLayer => l.kind === 'array');
-  const side = layers.filter((l) => l.kind !== 'array');
+  const zones = layers.filter((l): l is ZonesLayer => l.kind === 'zones');
+  const side = layers.filter((l) => l.kind !== 'array' && l.kind !== 'zones');
   return (
     <div className="scene">
       {arrays.map((l) => (
         <ArrayView key={l.id} layer={l} />
+      ))}
+      {zones.map((l) => (
+        <ZonesView key={l.id} layer={l} />
       ))}
       {side.length > 0 && (
         <div className="scene-side">

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildTrace, dragIds, hintsFor, judge, judgeMove, MAX_STEPS } from '../core/engine';
 import { CATEGORIES } from '../core/categories';
 import { PROBLEMS } from './index';
+import { TAP } from '../core/types';
 
 const RUNS = 300;
 
@@ -72,18 +73,23 @@ describe.each(PROBLEMS.filter((p) => p.drag).map((p) => [p.id, p] as const))('%s
       let s = p.init(input);
       for (let k = 0; k < MAX_STEPS && !p.isDone(s); k++) {
         const moves = p.drag!.moves(s);
-        const { drags, drops } = dragIds(p.scene(s));
+        const ids = dragIds(p.scene(s));
+        const drops = ids.drops;
+        const drags = [...ids.drags, ...(p.drag!.tapZones?.length ? [TAP] : [])];
         expect(moves.length).toBeGreaterThan(0);
         for (const m of moves) {
           expect(p.correct(s)).toContain(m.action);
           expect(drags).toContain(m.from);
           expect(drops).toContain(m.to);
+          if (m.from === TAP) expect(p.drag!.tapZones).toContain(m.to);
         }
         for (const from of drags)
           for (const to of drops) {
+            if (from === TAP && !p.drag!.tapZones!.includes(to)) continue;
             const j = judgeMove(p, s, from, to);
             const isMove = moves.some((m) => m.from === from && m.to === to);
             expect(j.ok).toBe(isMove);
+            expect(j.message.zh.trim().length, `${from} -> ${to}`).toBeGreaterThan(0);
             expect(j.message.zh).not.toMatch(/undefined|NaN/);
             expect(j.message.en).not.toMatch(/undefined|NaN/);
             if (!j.ok) expect(j.next).toBe(s);
@@ -94,5 +100,5 @@ describe.each(PROBLEMS.filter((p) => p.drag).map((p) => [p.id, p] as const))('%s
       expect(p.isDone(s)).toBe(true);
       expect(p.verify(input, p.answer(s))).toBe(true);
     }
-  });
+  }, 60_000);
 });

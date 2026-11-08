@@ -1,3 +1,4 @@
+import { TAP } from '../core/types';
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
 /** Visual drag state shared with the Scene so it can mark draggables and drop zones. */
@@ -125,7 +126,9 @@ export interface Floating {
  * Pointer-based drag & drop (mouse, pen and touch). Also supports tap-to-select, then tap a target.
  * `attempt(from, to)` returns true when the move was accepted.
  */
-export function usePointerDrag(enabled: boolean, attempt: (from: string, to: string) => boolean) {
+export function usePointerDrag(enabled: boolean, attempt: (from: string, to: string) => boolean, tapZones: string[] = []) {
+  const tapRef = useRef(tapZones);
+  tapRef.current = tapZones;
   const [selected, setSelected] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -178,7 +181,10 @@ export function usePointerDrag(enabled: boolean, attempt: (from: string, to: str
       // A tap: if a tile is already selected and this is a different target, try the move.
       const sel = selectedRef.current;
       const to = zoneAt(e.clientX, e.clientY);
-      if (sel && sel !== p.id && to && to !== p.zone) {
+      // The zone the selected tile already sits in (dropping it there is a no-op).
+      const selEl = sel ? document.querySelector(`[data-drag-id="${CSS.escape(sel)}"]`) : null;
+      const selHome = (selEl?.closest('[data-drop-id]') as HTMLElement | null)?.dataset.dropId ?? null;
+      if (sel && sel !== p.id && to && to !== selHome) {
         setSelected(null);
         attemptRef.current(sel, to);
         return;
@@ -207,6 +213,9 @@ export function usePointerDrag(enabled: boolean, attempt: (from: string, to: str
         e.preventDefault();
         setSelected(null);
         attemptRef.current(sel, zone);
+      } else if (zone && tapRef.current.includes(zone)) {
+        e.preventDefault();
+        attemptRef.current(TAP, zone);
       } else setSelected(null);
       return;
     }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { hintsFor, judge, judgeMove } from '../core/engine';
-import { L, type L10n, type Problem } from '../core/types';
+import { L, TAP, type L10n, type Problem } from '../core/types';
 import { ui, useLang } from '../i18n';
 import { CodePanel } from './CodePanel';
 import { DemoGhost, DragContext, FloatingTile, usePointerDrag } from './drag';
@@ -26,6 +26,7 @@ const isTyping = (e: KeyboardEvent) => {
 
 const DRAG_HINT_SRC = L('拿起發光的那一塊。', 'Pick up the glowing tile.');
 const DRAG_HINT_DEMO = L('示範：把發光的方塊拖到發光的位置。', 'Demo: drag the glowing tile onto the glowing spot.');
+const TAP_HINT = L('點一下發光的區域。', 'Tap the glowing area.');
 
 export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Props) {
   const { t } = useLang();
@@ -72,7 +73,7 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
     return j.ok;
   };
 
-  const drag = usePointerDrag(isDrag && !done, attempt);
+  const drag = usePointerDrag(isDrag && !done, attempt, problem.drag?.tapZones);
 
   const reset = () => {
     setState(initial);
@@ -96,13 +97,21 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
   }, [done, mistakes, onSolved]);
 
   const options = problem.options(state);
-  const move = !done && problem.drag ? problem.drag.moves(state)[0] : null;
+  // Prefer a real drag over a tap when showing hints, since dragging is the skill being practiced.
+  const allMoves = !done && problem.drag ? problem.drag.moves(state) : [];
+  const move = allMoves.find((m) => m.from !== TAP) ?? allMoves[0] ?? null;
+  const isTap = move?.from === TAP;
   const hints: L10n[] = done
     ? []
     : isDrag
       ? (() => {
           const h = problem.hints(state);
-          return [h[0], L(`${h[1]?.zh ?? ''} ${DRAG_HINT_SRC.zh}`.trim(), `${h[1]?.en ?? ''} ${DRAG_HINT_SRC.en}`.trim()), DRAG_HINT_DEMO];
+          const second = isTap ? TAP_HINT : DRAG_HINT_SRC;
+          return [
+            h[0],
+            L(`${h[1]?.zh ?? ''} ${second.zh}`.trim(), `${h[1]?.en ?? ''} ${second.en}`.trim()),
+            isTap ? TAP_HINT : DRAG_HINT_DEMO,
+          ];
         })()
       : hintsFor(problem, state);
 
@@ -136,8 +145,8 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
     selected: drag.selected,
     hover: drag.hover,
     dragging: drag.dragging,
-    glowFrom: move && hintLevel >= 2 ? move.from : null,
-    glowTo: move && hintLevel >= 3 ? move.to : null,
+    glowFrom: move && !isTap && hintLevel >= 2 ? move.from : null,
+    glowTo: move && (isTap ? hintLevel >= 2 : hintLevel >= 3) ? move.to : null,
   };
 
   const demoLabel = (() => {
@@ -159,7 +168,7 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
             onPointerDown={drag.onPointerDown}
           >
             <Scene layers={problem.scene(state)} />
-            {move && hintLevel >= 3 && <DemoGhost root={stageRef} from={move.from} to={move.to} label={demoLabel} />}
+            {move && !isTap && hintLevel >= 3 && <DemoGhost root={stageRef} from={move.from} to={move.to} label={demoLabel} />}
           </div>
         </DragContext.Provider>
         <FloatingTile f={drag.floating} />

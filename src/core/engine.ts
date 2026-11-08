@@ -86,11 +86,13 @@ export function dragIds(layers: Layer[]): { drags: string[]; drops: string[] } {
   const drops: string[] = [];
   for (const l of layers) {
     if (l.kind === 'array') {
-      if (l.dragPrefix) l.values.forEach((_, i) => drags.push(`${l.dragPrefix}:${i}`));
-      if (l.dropPrefix) l.values.forEach((_, i) => drops.push(`${l.dropPrefix}:${i}`));
+      if (l.dragPrefix) l.values.forEach((_, i) => l.dragMask?.[i] !== false && drags.push(`${l.dragPrefix}:${i}`));
+      if (l.dropPrefix) l.values.forEach((_, i) => l.dropMask?.[i] !== false && drops.push(`${l.dropPrefix}:${i}`));
     } else if (l.kind === 'stack') {
       if (l.dragPrefix) l.items.forEach((_, i) => drags.push(`${l.dragPrefix}:${i}`));
       if (l.dropId) drops.push(l.dropId);
+    } else if (l.kind === 'zones') {
+      for (const z of l.zones) drops.push(z.id);
     }
   }
   return { drags, drops };

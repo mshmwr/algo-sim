@@ -1,5 +1,5 @@
 import { pick, randInt } from '../core/engine';
-import { L, type Problem } from '../core/types';
+import { L, TAP, type CellMark, type Problem } from '../core/types';
 import { err, isObj, showChar } from './helpers';
 
 type I = { s: string };
@@ -76,13 +76,13 @@ export const validPalindrome: Problem<I, S> = {
     const cr = showChar(s[r] ?? '');
     switch (a) {
       case 'skipL':
-        return L(`s[L] = '${cl}' 不是英數字，L 右移跳過它。`, `s[L] = '${cl}' is not alphanumeric, so L skips it.`);
+        return L(`左端的 '${cl}' 不是英數字，丟掉它（L 右移一格）。`, `'${cl}' on the left is not alphanumeric. Discard it (L moves right).`);
       case 'skipR':
-        return L(`s[R] = '${cr}' 不是英數字，R 左移跳過它。`, `s[R] = '${cr}' is not alphanumeric, so R skips it.`);
+        return L(`右端的 '${cr}' 不是英數字，丟掉它（R 左移一格）。`, `'${cr}' on the right is not alphanumeric. Discard it (R moves left).`);
       case 'shrink':
         return L(
-          `'${cl}' 和 '${cr}' 相同（忽略大小寫），兩端同時往內縮。`,
-          `'${cl}' and '${cr}' match (ignoring case), so both pointers move inward.`,
+          `'${cl}' 和 '${cr}' 相同（忽略大小寫），配對成功，兩端往內縮。`,
+          `'${cl}' and '${cr}' match (ignoring case). Paired! Both ends move inward.`,
         );
       case 'false':
         return L(`'${cl}' ≠ '${cr}'，不是回文，回傳 False。`, `'${cl}' ≠ '${cr}', not a palindrome. Return False.`);
@@ -111,37 +111,112 @@ export const validPalindrome: Problem<I, S> = {
       : L('比較一下 L 和 R 的位置。', 'Compare the positions of L and R.'),
   ],
   scene({ s, l, r, done, result }) {
-    const marks: Record<number, 'good' | 'bad' | 'focus' | 'done'> = {};
+    const n = s.length;
+    const marks: Record<number, CellMark> = {};
+    for (let k = 0; k < n; k++) {
+      if (k >= l && k <= r) continue;
+      marks[k] = alnum(s[k]) ? 'good' : 'gone';
+    }
     if (done && result === false) {
       marks[l] = 'bad';
       marks[r] = 'bad';
-    } else if (l < r && alnum(s[l]) && alnum(s[r])) {
-      marks[l] = 'focus';
-      marks[r] = 'focus';
-    }
+    } else if (done && l === r) marks[l] = 'good';
+    const live = [...s].map((_, k) => !done && k >= l && k <= r);
     return [
       {
         kind: 'array',
         id: 's',
-        label: L('字串 s', 'string s'),
+        label: L('字串 s（拖曳最外側的字元）', 'string s (drag the outermost characters)'),
         values: [...s].map(showChar),
-        pointers: [
-          { name: 'L', index: l, color: 'a' },
-          { name: 'R', index: r, color: 'b' },
-        ],
-        active: l <= r ? [l, r] : null,
+        pointers: done
+          ? []
+          : [
+              { name: 'L', index: l, color: 'a' },
+              { name: 'R', index: r, color: 'b' },
+            ],
         marks,
+        dragPrefix: 'c',
+        dropPrefix: 'c',
+        dragMask: live,
+        dropMask: live,
       },
       {
-        kind: 'vars',
-        id: 'v',
-        vars: [
-          { name: 'L', value: l },
-          { name: 'R', value: r },
-          { name: 'return', value: result === null ? '—' : result ? 'True' : 'False', highlight: done },
+        kind: 'zones',
+        id: 'zones',
+        zones: [
+          { id: 'trash', label: L('🗑️ 丟掉（空白、標點）', '🗑️ Discard (spaces, punctuation)'), tone: 'trash' },
+          { id: 'no', label: L('✗ 不是回文', '✗ Not a palindrome'), tone: 'bad' },
+          { id: 'yes', label: L('✓ 是回文', '✓ Palindrome'), tone: 'good' },
         ],
       },
     ];
+  },
+  drag: {
+    instructions: L(
+      '處理最外側的兩個字元：空白和標點拖進 🗑️；兩個字母相同就把一個拖到另一個上面配對；不同就拖進 ✗。全部配對完，點 ✓。',
+      'Work on the two outermost characters: drag spaces and punctuation into 🗑️; if the two letters match, drag one onto the other to pair them; if not, drag one into ✗. When everything is paired, tap ✓.',
+    ),
+    tapZones: ['yes', 'no'],
+    moves({ s, l, r }) {
+      if (l >= r) {
+        const m = [{ action: 'true', from: TAP, to: 'yes' }];
+        if (l === r) m.push({ action: 'true', from: `c:${l}`, to: 'yes' });
+        return m;
+      }
+      const a = !alnum(s[l]);
+      const b = !alnum(s[r]);
+      if (a || b)
+        return [...(a ? [{ action: 'skipL', from: `c:${l}`, to: 'trash' }] : []), ...(b ? [{ action: 'skipR', from: `c:${r}`, to: 'trash' }] : [])];
+      if (same(s[l], s[r]))
+        return [
+          { action: 'shrink', from: `c:${l}`, to: `c:${r}` },
+          { action: 'shrink', from: `c:${r}`, to: `c:${l}` },
+        ];
+      return [
+        { action: 'false', from: `c:${l}`, to: 'no' },
+        { action: 'false', from: `c:${r}`, to: 'no' },
+        { action: 'false', from: TAP, to: 'no' },
+      ];
+    },
+    whyWrong({ s, l, r }, from, to) {
+      const q = (c: string) => `'${showChar(c)}'`;
+      const pending =
+        l < r
+          ? !alnum(s[l]) || !alnum(s[r])
+            ? L('最外側還有空白或標點要先丟掉。', 'There is still a space or punctuation mark at an outer end to discard first.')
+            : same(s[l], s[r])
+              ? L(`${q(s[l])} 和 ${q(s[r])} 相同，要先把它們配對。`, `${q(s[l])} and ${q(s[r])} match. Pair them first.`)
+              : L(`${q(s[l])} 和 ${q(s[r])} 不同。`, `${q(s[l])} and ${q(s[r])} differ.`)
+          : L('', '');
+      if (l >= r) {
+        if (to === 'no') return L('所有字母都配對成功了，沒有發現不同的地方。', 'Every letter pair matched. No mismatch was found.');
+        return L('比較已經結束，點 ✓ 是回文。', 'Comparing is finished. Tap ✓ Palindrome.');
+      }
+      if (from === TAP) {
+        if (to === 'yes') return L(`還有字元沒比完。${pending.zh}`, `Some characters are still unchecked. ${pending.en}`);
+        return L(`現在還不能下結論。${pending.zh}`, `You can't conclude yet. ${pending.en}`);
+      }
+      const k = Number(from.split(':')[1]);
+      const c = s[k];
+      if (k !== l && k !== r)
+        return L(
+          `${q(c)} 不在最外側。現在要處理的是左端的 ${q(s[l])} 和右端的 ${q(s[r])}。`,
+          `${q(c)} is not at an outer end. Work on ${q(s[l])} on the left and ${q(s[r])} on the right.`,
+        );
+      const other = k === l ? r : l;
+      if (to === 'trash')
+        return alnum(c)
+          ? L(`${q(c)} 是英數字，不能丟掉，要拿來比較。`, `${q(c)} is a letter or digit. Don't discard it; it has to be compared.`)
+          : L('', '');
+      if (!alnum(c)) return L(`${q(c)} 是空白或標點，不算數，拖進 🗑️ 丟掉。`, `${q(c)} is a space or punctuation and doesn't count. Drag it into 🗑️.`);
+      if (!alnum(s[other]))
+        return L(`另一端的 ${q(s[other])} 要先丟掉，才能比較。`, `Discard ${q(s[other])} at the other end before comparing.`);
+      if (to === 'yes') return L(`還有字元沒比完。${pending.zh}`, `Some characters are still unchecked. ${pending.en}`);
+      if (to === 'no') return L(`${q(s[l])} 和 ${q(s[r])} 忽略大小寫後是相同的，可以配對。`, `${q(s[l])} and ${q(s[r])} are the same ignoring case. Pair them.`);
+      const j = Number(to.split(':')[1]);
+      if (j !== other) return L(`要和另一端的 ${q(s[other])} 配對。`, `Pair it with ${q(s[other])} at the other end.`);
+      return L(`${q(s[l])} 和 ${q(s[r])} 不一樣，不能配對。`, `${q(s[l])} and ${q(s[r])} are different, so they can't be paired.`);
+    },
   },
   result: (st) => L(`回傳 ${st.result ? 'True' : 'False'}`, `Returned ${st.result ? 'True' : 'False'}`),
   code: `def isPalindrome(self, s: str) -> bool:

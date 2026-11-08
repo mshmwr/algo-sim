@@ -1230,3 +1230,58 @@ h2 {
 .layer-stack {
   min-width: 140px;
 }
+
+/* ---------- drop zones (discard / answers) ---------- */
+.layer-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.zone {
+  flex: 1 1 140px;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--muted);
+  user-select: none;
+  -webkit-user-select: none;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.zone-good {
+  color: var(--good);
+  border-color: color-mix(in srgb, var(--good) 45%, transparent);
+  cursor: pointer;
+}
+.zone-bad {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 45%, transparent);
+  cursor: pointer;
+}
+.zone.droppable.drop-armed {
+  outline: none;
+  border-style: solid;
+}
+.zone.droppable.drop-hover {
+  outline: none;
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.cell.mark-gone {
+  opacity: 0.22;
+  text-decoration: line-through;
+  background: var(--surface-2);
+}
+.cell.mark-good {
+  transition: background 0.3s;
+}
