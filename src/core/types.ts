@@ -60,7 +60,7 @@ export interface ArrayLayer {
 export interface ZonesLayer {
   kind: 'zones';
   id: string;
-  zones: { id: string; label: L10n; tone: 'trash' | 'good' | 'bad' }[];
+  zones: { id: string; label: L10n; tone: 'trash' | 'good' | 'bad' | 'info' }[];
 }
 
 export interface StackLayer {
@@ -83,6 +83,8 @@ export interface SetLayer {
   id: string;
   label: L10n;
   items: (string | number)[];
+  /** The whole set is a drop target with this id. */
+  dropId?: string;
 }
 
 export interface VarsLayer {

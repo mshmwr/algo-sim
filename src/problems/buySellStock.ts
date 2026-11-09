@@ -1,5 +1,5 @@
 import { randInt } from '../core/engine';
-import { L, type Problem } from '../core/types';
+import { L, type CellMark, type Problem } from '../core/types';
 import { err, isIntArray, isObj } from './helpers';
 
 type I = { prices: number[] };
@@ -69,20 +69,26 @@ export const buySellStock: Problem<I, S> = {
     L(`買入價 prices[L] = ${p[l]}，今天 prices[R] = ${p[r]}。`, `Buy price prices[L] = ${p[l]}, today prices[R] = ${p[r]}.`),
   ],
   scene({ p, l, r, best }) {
-    const inRange = r < p.length;
+    const n = p.length;
+    const inRange = r < n;
+    const marks: Record<number, CellMark> = {};
+    for (let k = 0; k < Math.min(r, n); k++) marks[k] = k === l ? 'focus' : 'done';
+    if (inRange) marks[r] = 'focus';
     return [
       {
         kind: 'array',
         id: 'p',
-        label: L('prices', 'prices'),
+        label: L('prices（R 是今天；拖曳今天的價格）', "prices (R is today; drag today's price)"),
         values: p,
         bars: true,
         pointers: [
           { name: 'L', index: l, color: 'a' },
-          { name: 'R', index: r, color: 'b' },
+          ...(inRange ? [{ name: 'R', index: r, color: 'b' as const }] : []),
         ],
         window: inRange ? [l, r] : null,
-        marks: inRange ? { [l]: 'focus', [r]: 'focus' } : { [l]: 'focus' },
+        marks,
+        dragPrefix: 'p',
+        dragMask: p.map((_, k) => inRange && k >= r),
       },
       {
         kind: 'vars',
@@ -90,11 +96,45 @@ export const buySellStock: Problem<I, S> = {
         vars: [
           { name: 'prices[L]', value: p[l] },
           { name: 'prices[R]', value: inRange ? p[r] : '—' },
-          { name: 'prices[R] - prices[L]', value: inRange ? p[r] - p[l] : '—' },
           { name: 'maxP', value: best, highlight: true },
         ],
       },
+      {
+        kind: 'zones',
+        id: 'zones',
+        zones: [
+          { id: 'buy', label: L(`🛒 買入（目前：第 ${l} 天，${p[l]}）`, `🛒 Buy (now: day ${l}, ${p[l]})`), tone: 'info' },
+          { id: 'sell', label: L('💰 賣出（算利潤）', '💰 Sell (take profit)'), tone: 'good' },
+        ],
+      },
     ];
+  },
+  drag: {
+    instructions: L(
+      '一天一天往後看。今天比買入價高，就把今天的價格拖到 💰 賣出算利潤；比買入價低，就拖到 🛒 買入，改成今天買。',
+      "Go day by day. If today is above the buy price, drag today's price to 💰 Sell to take the profit; if it's lower, drag it to 🛒 Buy to buy today instead.",
+    ),
+    moves({ p, l, r }) {
+      const sell = { action: 'profit', from: `p:${r}`, to: 'sell' };
+      const buy = { action: 'newBuy', from: `p:${r}`, to: 'buy' };
+      if (p[r] > p[l]) return [sell];
+      if (p[r] < p[l]) return [buy];
+      return [buy, sell];
+    },
+    whyWrong({ p, l, r }, from, to) {
+      const k = Number(from.split(':')[1]);
+      if (k !== r)
+        return L(`還沒到第 ${k} 天。一天一天往後看，今天是第 ${r} 天（${p[r]}）。`, `Day ${k} hasn't come yet. Go day by day; today is day ${r} (${p[r]}).`);
+      if (to === 'sell')
+        return L(
+          `今天 ${p[r]} 比買入價 ${p[l]} 低，賣了會賠錢。這麼便宜，應該改成今天買。`,
+          `Today's ${p[r]} is below the buy price ${p[l]}, so selling loses money. It's cheap, so buy today instead.`,
+        );
+      return L(
+        `今天 ${p[r]} 比買入價 ${p[l]} 貴，換成更貴的買入價只會讓之後的利潤變少。試試看今天賣出能賺多少。`,
+        `Today's ${p[r]} is above the buy price ${p[l]}. A pricier buy only lowers future profits. See how much selling today makes.`,
+      );
+    },
   },
   result: (st) => L(`最大利潤 = ${st.best}`, `Max profit = ${st.best}`),
   code: `def maxProfit(self, prices: List[int]) -> int:

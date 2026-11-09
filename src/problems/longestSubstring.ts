@@ -1,5 +1,5 @@
 import { pick, randInt } from '../core/engine';
-import { L, type Problem } from '../core/types';
+import { L, type CellMark, type Problem } from '../core/types';
 import { err, isObj, showChar } from './helpers';
 
 type I = { s: string };
@@ -67,17 +67,19 @@ export const longestSubstring: Problem<I, S> = {
     L(`s[R] = '${showChar(s[r])}'，charSet = {${set.map(showChar).join(', ')}}。`, `s[R] = '${showChar(s[r])}', charSet = {${set.map(showChar).join(', ')}}.`),
   ],
   scene({ s, l, r, set, best }) {
-    const marks: Record<number, 'bad' | 'focus'> = {};
-    if (r < s.length) {
+    const n = s.length;
+    const marks: Record<number, CellMark> = {};
+    for (let k = 0; k < l; k++) marks[k] = 'gone';
+    if (r < n) {
       const dup = set.includes(s[r]);
       marks[r] = dup ? 'bad' : 'focus';
-      if (dup) for (let i = l; i < r; i++) if (s[i] === s[r]) marks[i] = 'bad';
+      if (dup) for (let k = l; k < r; k++) if (s[k] === s[r]) marks[k] = 'bad';
     }
     return [
       {
         kind: 'array',
         id: 's',
-        label: L('字串 s', 'string s'),
+        label: L('字串 s（藍色區塊是視窗）', 'string s (the blue band is the window)'),
         values: [...s].map(showChar),
         pointers: [
           { name: 'L', index: l, color: 'a' },
@@ -85,17 +87,51 @@ export const longestSubstring: Problem<I, S> = {
         ],
         window: r > l ? [l, r - 1] : null,
         marks,
+        dragPrefix: 'c',
+        dragMask: [...s].map((_, k) => r < n && k >= l),
       },
-      { kind: 'set', id: 'set', label: L('charSet（視窗內的字元）', 'charSet (chars in window)'), items: set.map(showChar) },
       {
-        kind: 'vars',
-        id: 'v',
-        vars: [
-          { name: 'r - l', value: r - l },
-          { name: 'res', value: best, highlight: true },
-        ],
+        kind: 'set',
+        id: 'set',
+        label: L('charSet（視窗內的字元，拖進來 = 加入視窗）', 'charSet (chars in the window; drop here to add)'),
+        items: set.map(showChar),
+        dropId: r < n ? 'set' : undefined,
+      },
+      { kind: 'vars', id: 'v', vars: [{ name: 'r - l', value: r - l }, { name: 'res', value: best, highlight: true }] },
+      {
+        kind: 'zones',
+        id: 'zones',
+        zones: [{ id: 'out', label: L('🗑️ 移出視窗（只能從最左邊）', '🗑️ Remove from window (leftmost only)'), tone: 'trash' }],
       },
     ];
+  },
+  drag: {
+    instructions: L(
+      '把 s[R] 拖進 charSet 擴張視窗。如果它已經在視窗裡（重複），就從最左邊把字一個一個拖進 🗑️，直到重複的字離開。',
+      "Drag s[R] into charSet to grow the window. If it's already in the window (a repeat), drag characters from the left end into 🗑️ one at a time until the repeat leaves.",
+    ),
+    moves({ s, l, r, set }) {
+      return set.includes(s[r]) ? [{ action: 'shrink', from: `c:${l}`, to: 'out' }] : [{ action: 'expand', from: `c:${r}`, to: 'set' }];
+    },
+    whyWrong({ s, l, r, set }, from, to) {
+      const k = Number(from.split(':')[1]);
+      const q = (i: number) => `'${showChar(s[i])}'`;
+      const dup = set.includes(s[r]);
+      if (k > r) return L(`還沒輪到 ${q(k)}。現在要處理的是 s[R] = ${q(r)}。`, `It's not ${q(k)}'s turn. The current one is s[R] = ${q(r)}.`);
+      if (k === r) {
+        if (to === 'out') return L(`${q(r)} 還沒進視窗，不能移出。`, `${q(r)} isn't in the window yet, so it can't be removed.`);
+        return L(
+          `${q(r)} 已經在視窗裡了（重複）。要先從最左邊把字移出，直到重複的 ${q(r)} 離開視窗。`,
+          `${q(r)} is already in the window (a repeat). Remove characters from the left until the earlier ${q(r)} leaves.`,
+        );
+      }
+      // k is inside the window (l <= k < r)
+      if (to === 'set') return L(`${q(k)} 已經在視窗裡了。`, `${q(k)} is already in the window.`);
+      if (k !== l) return L(`只能從最左邊一個一個移出，最左邊是 ${q(l)}。`, `Remove from the left end one at a time; the leftmost is ${q(l)}.`);
+      if (!dup)
+        return L(`${q(r)} 不在視窗裡，不需要縮小，直接把 ${q(r)} 加入視窗。`, `${q(r)} isn't in the window, so no need to shrink. Just add ${q(r)}.`);
+      return L('', '');
+    },
   },
   result: (st) => L(`最長長度 = ${st.best}`, `Longest length = ${st.best}`),
   code: `def lengthOfLongestSubstring(self, s: str) -> int:

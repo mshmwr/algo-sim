@@ -145,10 +145,11 @@ function StackView({ layer }: { layer: StackLayer }) {
 
 function SetView({ layer }: { layer: SetLayer }) {
   const { t } = useLang();
+  const z = useDroppable(layer.dropId);
   return (
     <div className="layer layer-set">
       <div className="layer-label">{t(layer.label)}</div>
-      <div className="chips">
+      <div className={['chips', z.className].filter(Boolean).join(' ')} {...z.attrs}>
         {layer.items.length === 0 && <span className="muted">{t(ui.empty)}</span>}
         {layer.items.map((v) => (
           <span key={String(v)} className="chip">

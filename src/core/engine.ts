@@ -92,6 +92,8 @@ export function dragIds(layers: Layer[]): { drags: string[]; drops: string[] } {
       if (l.dragPrefix) l.items.forEach((_, i) => drags.push(`${l.dragPrefix}:${i}`));
       if (l.dropId) drops.push(l.dropId);
       if (l.itemDropPrefix) l.items.forEach((_, i) => drops.push(`${l.itemDropPrefix}:${i}`));
+    } else if (l.kind === 'set') {
+      if (l.dropId) drops.push(l.dropId);
     } else if (l.kind === 'zones') {
       for (const z of l.zones) drops.push(z.id);
     }

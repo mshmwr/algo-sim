@@ -1285,3 +1285,15 @@ h2 {
 .cell.mark-good {
   transition: background 0.3s;
 }
+
+.zone-info {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.chips.droppable {
+  min-height: 48px;
+  min-width: 160px;
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 6px 8px;
+}
