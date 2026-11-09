@@ -104,11 +104,12 @@ function Cell({ cls, dragId, dropId, label, children }: { cls: string; dragId?: 
   );
 }
 
-function StackItem({ v, sub, top, dragId }: { v: string | number; sub?: string; top: boolean; dragId?: string }) {
+function StackItem({ v, sub, top, dragId, dropId }: { v: string | number; sub?: string; top: boolean; dragId?: string; dropId?: string }) {
   const { t } = useLang();
   const d = useDraggable(dragId, String(v));
+  const z = useDroppable(dropId);
   return (
-    <div className={['stack-item', top ? 'stack-top' : '', d.className].filter(Boolean).join(' ')} {...d.attrs}>
+    <div className={['stack-item', top ? 'stack-top' : '', d.className, z.className].filter(Boolean).join(' ')} {...d.attrs} {...z.attrs}>
       <span>
         {v}
         {sub && <small>{sub}</small>}
@@ -134,6 +135,7 @@ function StackView({ layer }: { layer: StackLayer }) {
             sub={layer.itemSub ? t(layer.itemSub[i]) : undefined}
             top={i === n - 1}
             dragId={layer.dragPrefix ? `${layer.dragPrefix}:${i}` : undefined}
+            dropId={layer.itemDropPrefix ? `${layer.itemDropPrefix}:${i}` : undefined}
           />
         ))}
       </div>
@@ -200,9 +202,6 @@ export function Scene({ layers }: { layers: Layer[] }) {
       {arrays.map((l) => (
         <ArrayView key={l.id} layer={l} />
       ))}
-      {zones.map((l) => (
-        <ZonesView key={l.id} layer={l} />
-      ))}
       {side.length > 0 && (
         <div className="scene-side">
           {side.map((l) =>
@@ -216,6 +215,9 @@ export function Scene({ layers }: { layers: Layer[] }) {
           )}
         </div>
       )}
+      {zones.map((l) => (
+        <ZonesView key={l.id} layer={l} />
+      ))}
     </div>
   );
 }

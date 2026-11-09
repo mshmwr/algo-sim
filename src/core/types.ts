@@ -74,6 +74,8 @@ export interface StackLayer {
   dragPrefix?: string;
   /** The whole stack is a drop target with this id. */
   dropId?: string;
+  /** Each item is also a drop target as `${itemDropPrefix}:${index}` (e.g. to pair with the top). */
+  itemDropPrefix?: string;
 }
 
 export interface SetLayer {

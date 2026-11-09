@@ -1,9 +1,10 @@
 import { pick, randInt } from '../core/engine';
-import { L, type Problem } from '../core/types';
+import { L, TAP, type CellMark, type Layer, type Problem } from '../core/types';
 import { err, isObj } from './helpers';
 
 type I = { tokens: string[] };
-type S = { tokens: string[]; i: number; stack: number[]; done: boolean };
+/** b = right operand (popped first), a = left operand (popped second). */
+type S = { tokens: string[]; i: number; stack: number[]; done: boolean; b: number | null };
 
 const OPS = ['+', '-', '*', '/'];
 const isOp = (t: string) => OPS.includes(t);
@@ -34,8 +35,6 @@ function genTree(depth: number): Node {
   return { op, l, r };
 }
 
-/** Stack top first: b = top, a = second. */
-const operands = (stack: number[]) => ({ a: stack[stack.length - 2], b: stack[stack.length - 1] });
 
 export const evalRPN: Problem<I, S> = {
   id: 'evaluate-reverse-polish-notation',
@@ -90,78 +89,137 @@ export const evalRPN: Problem<I, S> = {
   },
   formatInput: (i) => `tokens = [${i.tokens.map((t) => JSON.stringify(t)).join(', ')}]`,
 
-  init: ({ tokens }) => ({ tokens, i: 0, stack: [], done: false }),
+  init: ({ tokens }) => ({ tokens, i: 0, stack: [], done: false, b: null }),
   isDone: (st) => st.done,
   options: () => [
     { id: 'push', label: L('數字放進堆疊（push）', 'Push the number') },
-    { id: 'compute', label: L('彈出兩個，算「次頂 ○ 頂端」', 'Pop two, compute second ○ top') },
-    { id: 'computeRev', label: L('彈出兩個，算「頂端 ○ 次頂」', 'Pop two, compute top ○ second') },
-    { id: 'return', label: L('回傳堆疊中的結果', 'Return the result') },
+    { id: 'takeB', label: L('pop 頂端 → 右邊的 b', 'Pop top → right operand b') },
+    { id: 'takeA', label: L('pop 頂端 → 左邊的 a，計算', 'Pop top → left operand a, compute') },
+    { id: 'return', label: L('回傳結果', 'Return the result') },
   ],
-  correct({ tokens, i, stack }) {
+  correct({ tokens, i, b }) {
     if (i >= tokens.length) return ['return'];
-    const t = tokens[i];
-    if (!isOp(t)) return ['push'];
-    const { a, b } = operands(stack);
-    return calc(a, t, b) === calc(b, t, a) ? ['compute', 'computeRev'] : ['compute'];
+    if (!isOp(tokens[i])) return ['push'];
+    return b === null ? ['takeB'] : ['takeA'];
   },
   apply(st, act) {
     const t = st.tokens[st.i];
     if (act === 'push') return { ...st, stack: [...st.stack, parseInt(t, 10)], i: st.i + 1 };
     if (act === 'return') return { ...st, done: true };
-    const { a, b } = operands(st.stack);
-    const v = act === 'compute' ? calc(a, t, b) : calc(b, t, a);
-    return { ...st, stack: [...st.stack.slice(0, -2), v], i: st.i + 1 };
+    const top = st.stack[st.stack.length - 1];
+    const rest = st.stack.slice(0, -1);
+    if (act === 'takeB') return { ...st, stack: rest, b: top };
+    return { ...st, stack: [...rest, calc(top, t, st.b!)], b: null, i: st.i + 1 };
   },
-  explain({ tokens, i, stack }, act) {
+  explain({ tokens, i, stack, b }, act) {
     const t = tokens[i];
+    const top = stack[stack.length - 1];
     if (act === 'push') return L(`'${t}' 是數字，放進堆疊。`, `'${t}' is a number. Push it.`);
     if (act === 'return')
       return L(`所有 token 都處理完了，堆疊裡只剩 ${stack[0]}，就是答案。`, `All tokens are processed. Only ${stack[0]} is left on the stack, and that's the answer.`);
-    const { a, b } = operands(stack);
+    if (act === 'takeB')
+      return L(`遇到 '${t}'：先 pop 出頂端的 ${top}，它是右邊的運算元 b。`, `Operator '${t}': the first pop gives ${top}, the right operand b.`);
     return L(
-      `遇到 '${t}'：先彈出 b = ${b}（頂端），再彈出 a = ${a}，算 ${a} ${t} ${b} = ${calc(a, t, b)}，放回堆疊。`,
-      `Operator '${t}': pop b = ${b} (top), then a = ${a}. Compute ${a} ${t} ${b} = ${calc(a, t, b)} and push it.`,
+      `再 pop 出 ${top}，它是左邊的運算元 a。計算 ${top} ${t} ${b} = ${calc(top, t, b!)}，結果放回堆疊。`,
+      `The second pop gives ${top}, the left operand a. Compute ${top} ${t} ${b} = ${calc(top, t, b!)} and push the result.`,
     );
   },
-  whyWrong({ tokens, i, stack }, act) {
+  whyWrong({ tokens, i, b }, act) {
     if (i >= tokens.length) return L('所有 token 都處理完了。', 'All tokens have been processed.');
     const t = tokens[i];
     if (act === 'return') return L('還有 token 沒處理。', 'There are still tokens left.');
     if (!isOp(t)) return L(`'${t}' 是數字，直接放進堆疊。`, `'${t}' is a number. Just push it.`);
     if (act === 'push') return L(`'${t}' 是運算子，不是數字。`, `'${t}' is an operator, not a number.`);
-    const { a, b } = operands(stack);
-    return L(
-      `順序反了！先彈出的 ${b} 是右邊的運算元。應該是 ${a} ${t} ${b} = ${calc(a, t, b)}，不是 ${b} ${t} ${a}。`,
-      `Wrong order! The first pop (${b}) is the right operand. It is ${a} ${t} ${b} = ${calc(a, t, b)}, not ${b} ${t} ${a}.`,
-    );
+    if (act === 'takeA') return L('先 pop 出來的是右邊的 b，要先放 b。', 'The first pop is the right operand b. Fill b first.');
+    return L(`b 已經是 ${b} 了，這次 pop 出來的是左邊的 a。`, `b is already ${b}; this pop is the left operand a.`);
   },
-  hints: ({ tokens, i, stack }) => [
+  hints: ({ tokens, i, stack, b }) => [
     i >= tokens.length
       ? L('token 都處理完了嗎？', 'Have all tokens been processed?')
-      : L(`現在的 token '${tokens[i]}' 是數字還是運算子？`, `Is the current token '${tokens[i]}' a number or an operator?`),
-    L(
-      '遇到運算子時：先彈出的是右邊的運算元，例如 [5, 2] 遇到 - 是 5 - 2。',
-      'For an operator, the first pop is the right operand: [5, 2] with - means 5 - 2.',
-    ),
-    L(`堆疊：[${stack.join(', ')}]`, `Stack: [${stack.join(', ')}]`),
+      : isOp(tokens[i])
+        ? L('遇到運算子：先 pop 出來的是右邊的 b，再 pop 出來的是左邊的 a。例如 [5, 2] 遇到 - 是 5 - 2。', 'For an operator, the first pop is the right operand b, the second is the left operand a: [5, 2] with - means 5 - 2.')
+        : L(`現在的 token '${tokens[i]}' 是數字還是運算子？`, `Is the current token '${tokens[i]}' a number or an operator?`),
+    b !== null
+      ? L(`b = ${b} 已經放好，堆疊頂端是 ${stack[stack.length - 1]}。`, `b = ${b} is set; the stack top is ${stack[stack.length - 1]}.`)
+      : L(`堆疊：[${stack.join(', ')}]`, `Stack: [${stack.join(', ')}]`),
   ],
-  scene({ tokens, i, stack, done }) {
-    const marks: Record<number, 'focus' | 'done'> = {};
+  scene({ tokens, i, stack, done, b }): Layer[] {
+    const marks: Record<number, CellMark> = {};
     for (let k = 0; k < Math.min(i, tokens.length); k++) marks[k] = 'done';
     if (i < tokens.length) marks[i] = 'focus';
+    const op = i < tokens.length && isOp(tokens[i]) ? tokens[i] : null;
+    const live = tokens.map((t, k) => !done && k >= i && !isOp(t));
     return [
-      { kind: 'array', id: 'tokens', label: L('tokens', 'tokens'), values: tokens, pointers: [{ name: 'i', index: i, color: 'a' }], marks },
-      { kind: 'stack', id: 'stack', label: L('stack', 'stack'), items: stack },
+      { kind: 'array', id: 'tokens', label: L('tokens（由左往右處理）', 'tokens (left to right)'), values: tokens, pointers: done ? [] : [{ name: 'i', index: i, color: 'a' }], marks, dragPrefix: 't', dragMask: live },
       {
-        kind: 'vars',
-        id: 'v',
-        vars: [
-          { name: 'c', value: i < tokens.length ? tokens[i] : '—', highlight: true },
-          { name: 'return', value: done ? stack[0] : '—' },
-        ],
+        kind: 'stack',
+        id: 'stack',
+        label: L('stack', 'stack'),
+        items: stack,
+        dragPrefix: done ? undefined : 'k',
+        dropId: done ? undefined : 'stack',
+      },
+      ...(op
+        ? [
+            {
+              kind: 'array',
+              id: 'calc',
+              label: L('運算：a ○ b（把 stack 頂端拖進空格）', 'Compute a ○ b (drag the stack top into a slot)'),
+              values: ['a', op, b === null ? 'b' : b],
+              dropPrefix: 'slot',
+              dropMask: [true, false, true],
+              marks: (b !== null ? { 1: 'focus', 2: 'good' } : { 1: 'focus' }) as Record<number, CellMark>,
+            } satisfies Layer,
+          ]
+        : []),
+      {
+        kind: 'zones',
+        id: 'zones',
+        zones: [{ id: 'ans', label: L('✓ 這就是答案', "✓ That's the answer"), tone: 'good' }],
       },
     ];
+  },
+  drag: {
+    instructions: L(
+      '數字拖進 stack。遇到運算子時，把 stack 頂端依序拖進算式的空格，系統會算好放回去。全部處理完，把最後的數拖到 ✓（或直接點 ✓）。',
+      'Drag numbers into the stack. For an operator, drag the stack top into the formula slots one at a time; the result is pushed back for you. At the end, drag the last number to ✓ (or tap ✓).',
+    ),
+    tapZones: ['ans'],
+    moves({ tokens, i, stack, b }) {
+      const top = `k:${stack.length - 1}`;
+      if (i >= tokens.length) return [{ action: 'return', from: top, to: 'ans' }, { action: 'return', from: TAP, to: 'ans' }];
+      if (!isOp(tokens[i])) return [{ action: 'push', from: `t:${i}`, to: 'stack' }];
+      return b === null ? [{ action: 'takeB', from: top, to: 'slot:2' }] : [{ action: 'takeA', from: top, to: 'slot:0' }];
+    },
+    whyWrong({ tokens, i, stack, b }, from, to) {
+      const n = tokens.length;
+      const t = tokens[i];
+      const top = stack[stack.length - 1];
+      if (i >= n) {
+        if (from.startsWith('k:') && Number(from.split(':')[1]) !== stack.length - 1) return L('只能拿 stack 最上面那一塊。', 'You can only take the top of the stack.');
+        return L('所有 token 都處理完了，把最後的數拖到 ✓。', 'All tokens are processed. Drag the last number to ✓.');
+      }
+      if (to === 'ans') return L('還有 token 沒處理，還不是答案。', "Tokens remain, so it isn't the answer yet.");
+      if (from === TAP) return L('還有 token 沒處理。', 'There are still tokens left.');
+      const [kind, idxS] = from.split(':');
+      const k = Number(idxS);
+      if (kind === 't') {
+        if (k > i) return L(`還沒輪到 '${tokens[k]}'，由左往右處理，現在是 '${t}'。`, `It's not '${tokens[k]}'s turn. Go left to right; the current token is '${t}'.`);
+        if (isOp(t)) return L(`現在要處理運算子 '${t}'：把 stack 頂端拖進算式的空格。`, `Handle the operator '${t}' now: drag the stack top into the formula.`);
+        return L(`'${t}' 是數字，拖進 stack。`, `'${t}' is a number. Drag it into the stack.`);
+      }
+      // stack item
+      if (k !== stack.length - 1) return L('只能拿 stack 最上面那一塊。', 'You can only take the top of the stack.');
+      if (!isOp(t)) return L(`現在的 '${t}' 是數字，先把它放進 stack。`, `The current token '${t}' is a number. Push it first.`);
+      if (to === 'stack') return L('它已經在 stack 裡了，要拖進算式的空格。', "It's already in the stack. Drag it into a formula slot.");
+      if (to === 'slot:0' && b === null)
+        return L(
+          `先 pop 出來的 ${top} 是右邊的 b，要放右邊的空格。例如 [5, 2] 遇到 - 是 5 - 2，不是 2 - 5。`,
+          `The first pop (${top}) is the right operand b, so it goes in the right slot. [5, 2] with - means 5 - 2, not 2 - 5.`,
+        );
+      if (to === 'slot:2' && b !== null) return L(`b 已經是 ${b} 了，這次 pop 出來的 ${top} 是左邊的 a。`, `b is already ${b}; this pop (${top}) is the left operand a.`);
+      return L('拖進算式的空格。', 'Drag it into a formula slot.');
+    },
   },
   result: (st) => L(`結果 = ${st.stack[0]}`, `Result = ${st.stack[0]}`),
   code: `def evalRPN(self, tokens: List[str]) -> int:
@@ -176,7 +234,7 @@ export const evalRPN: Problem<I, S> = {
         else:
             stack.append(int(c))
     return stack[0]`,
-  lineOf: { init: 2, compute: 5, computeRev: 5, push: 11, return: 12 },
+  lineOf: { init: 2, takeB: 5, takeA: 5, push: 11, return: 12 },
   answer: (st) => st.stack[0],
   verify({ tokens }, ans) {
     // Independent check: rebuild the expression tree from the right, then evaluate recursively.

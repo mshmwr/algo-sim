@@ -1,5 +1,5 @@
 import { pick, randInt } from '../core/engine';
-import { L, type Problem } from '../core/types';
+import { L, TAP, type CellMark, type Problem } from '../core/types';
 import { err, isObj } from './helpers';
 
 type I = { s: string };
@@ -111,28 +111,113 @@ export const validParentheses: Problem<I, S> = {
     L(`堆疊頂端：${stack.length ? `'${stack[stack.length - 1]}'` : '（空）'}`, `Stack top: ${stack.length ? `'${stack[stack.length - 1]}'` : '(empty)'}`),
   ],
   scene({ s, i, stack, done, result }) {
-    const marks: Record<number, 'good' | 'bad' | 'focus' | 'done'> = {};
-    for (let k = 0; k < Math.min(i, s.length); k++) marks[k] = 'done';
+    const marks: Record<number, CellMark> = {};
+    for (let k = 0; k < Math.min(i, s.length); k++) marks[k] = isOpen(s[k]) ? 'done' : 'good';
     if (i < s.length) marks[i] = done && result === false ? 'bad' : 'focus';
+    const live = [...s].map((_, k) => !done && k >= i);
     return [
       {
         kind: 'array',
         id: 's',
-        label: L('字串 s', 'string s'),
+        label: L('字串 s（由左往右處理）', 'string s (left to right)'),
         values: [...s],
-        pointers: [{ name: 'i', index: i, color: 'a' }],
+        pointers: done ? [] : [{ name: 'i', index: i, color: 'a' }],
         marks,
+        dragPrefix: 'c',
+        dropPrefix: 'c',
+        dragMask: live,
+        dropMask: live,
       },
-      { kind: 'stack', id: 'stack', label: L('stack', 'stack'), items: stack },
       {
-        kind: 'vars',
-        id: 'v',
-        vars: [
-          { name: 'c', value: i < s.length ? s[i] : '—', highlight: true },
-          { name: 'return', value: result === null ? '—' : result ? 'True' : 'False' },
+        kind: 'stack',
+        id: 'stack',
+        label: L('stack（還在等配對的左括號）', 'stack (opening brackets waiting for a match)'),
+        items: stack,
+        dragPrefix: done ? undefined : 'k',
+        dropId: done ? undefined : 'stack',
+        itemDropPrefix: done ? undefined : 'k',
+      },
+      {
+        kind: 'zones',
+        id: 'zones',
+        zones: [
+          { id: 'no', label: L('✗ 無效', '✗ Invalid'), tone: 'bad' },
+          { id: 'yes', label: L('✓ 有效', '✓ Valid'), tone: 'good' },
         ],
       },
     ];
+  },
+  drag: {
+    instructions: L(
+      '由左往右處理：左括號拖進 stack；右括號拖到 stack 頂端那塊上面配對。配不起來就拖進 ✗。全部處理完，點 ✓ 或 ✗。',
+      'Go left to right: drag opening brackets into the stack; drag a closing bracket onto the top of the stack to pair it. If it cannot pair, drag it into ✗. When the string is done, tap ✓ or ✗.',
+    ),
+    tapZones: ['yes', 'no'],
+    moves({ s, i, stack }) {
+      const topPos = stack.length - 1;
+      if (i >= s.length) {
+        if (stack.length === 0) return [{ action: 'true', from: TAP, to: 'yes' }];
+        return [
+          { action: 'false', from: TAP, to: 'no' },
+          { action: 'false', from: `k:${topPos}`, to: 'no' },
+        ];
+      }
+      const c = s[i];
+      if (isOpen(c)) return [{ action: 'push', from: `c:${i}`, to: 'stack' }, ...stack.map((_, j) => ({ action: 'push', from: `c:${i}`, to: `k:${j}` }))];
+      if (stack.length > 0 && stack[topPos] === PAIR[c])
+        return [
+          { action: 'pop', from: `c:${i}`, to: `k:${topPos}` },
+          { action: 'pop', from: `k:${topPos}`, to: `c:${i}` },
+        ];
+      return [
+        { action: 'false', from: `c:${i}`, to: 'no' },
+        { action: 'false', from: TAP, to: 'no' },
+      ];
+    },
+    whyWrong({ s, i, stack }, from, to) {
+      const n = s.length;
+      const topPos = stack.length - 1;
+      const top = stack[topPos];
+      const q = (x: string) => `'${x}'`;
+      if (i >= n) {
+        if (to === 'yes') return L(`stack 裡還剩 ${stack.length} 個沒配對的左括號，所以無效。`, `${stack.length} unmatched opening bracket(s) remain, so it's invalid.`);
+        if (to === 'no') return L('stack 是空的，每個括號都配對成功了。', 'The stack is empty; every bracket was matched.');
+        return L('字串已經處理完了，點 ✓ 或 ✗ 下結論。', 'The string is done. Tap ✓ or ✗ to conclude.');
+      }
+      const c = s[i];
+      const ok = stack.length > 0 && top === PAIR[c];
+      if (from === TAP) {
+        if (to === 'yes') return L('字串還沒處理完。', 'The string is not finished yet.');
+        return isOpen(c)
+          ? L(`還沒發現問題：${q(c)} 是左括號，放進 stack 就好。`, `No problem yet: ${q(c)} is an opening bracket; just push it.`)
+          : L(`還沒發現問題：${q(c)} 可以和頂端的 ${q(top)} 配對。`, `No problem yet: ${q(c)} pairs with ${q(top)} on top.`);
+      }
+      const [kind, idxS] = from.split(':');
+      const k = Number(idxS);
+      if (kind === 'c') {
+        if (k > i) return L(`還沒輪到 ${q(s[k])}。由左往右一個一個處理，現在是 ${q(c)}。`, `It's not ${q(s[k])}'s turn. Go left to right; the current one is ${q(c)}.`);
+        if (to === 'yes') return L('字串還沒處理完。', 'The string is not finished yet.');
+        if (to.startsWith('c:')) return L('要拖到 stack，不是拖到字串裡。', 'Drag it to the stack, not into the string.');
+        if (isOpen(c))
+          return L(`${q(c)} 是左括號，放進 stack 等之後的右括號來配對。`, `${q(c)} is an opening bracket. Push it so a later closing bracket can pair with it.`);
+        // closing bracket
+        if (to === 'no') return L(`${q(c)} 和頂端的 ${q(top)} 剛好是一對，把它拖到頂端上配對。`, `${q(c)} matches ${q(top)} on top. Drag it onto the top to pair.`);
+        if (stack.length === 0)
+          return L(`${q(c)} 是右括號，但 stack 是空的，沒有左括號可以配對，這代表無效。`, `${q(c)} is a closing bracket, but the stack is empty. Nothing can pair with it, which means invalid.`);
+        if (to === 'stack') return L(`右括號不放進 stack，要拖到頂端的 ${q(top)} 上面比對。`, `Closing brackets don't go on the stack. Drag it onto the top ${q(top)} to compare.`);
+        const j = Number(to.split(':')[1]);
+        if (j !== topPos) return L(`只能和 stack 最上面的 ${q(top)} 配對。`, `It can only pair with ${q(top)} on top of the stack.`);
+        return ok ? L('', '') : L(`${q(c)} 和頂端的 ${q(top)} 不是一對，這代表無效。`, `${q(c)} doesn't match ${q(top)} on top, which means invalid.`);
+      }
+      // dragging a stack item
+      if (k !== topPos) return L('只能拿 stack 最上面那一塊。', 'You can only take the top of the stack.');
+      if (to === 'stack' || to.startsWith('k:')) return L('它已經在 stack 裡了。', "It's already in the stack.");
+      if (to === 'no' || to === 'yes') return L('字串還沒處理完。', 'The string is not finished yet.');
+      const j = Number(to.split(':')[1]);
+      if (j !== i) return L(`要和現在處理的 ${q(c)} 配對。`, `Pair it with the current character ${q(c)}.`);
+      if (isOpen(c)) return L(`${q(c)} 是左括號，要放進 stack，不是拿來配對。`, `${q(c)} is an opening bracket. Push it; it isn't a closing partner.`);
+      return L(`頂端的 ${q(top)} 和 ${q(c)} 不是一對，這代表無效。把 ${q(c)} 拖進 ✗。`, `${q(top)} doesn't match ${q(c)}, which means invalid. Drag ${q(c)} into ✗.`);
+    },
   },
   result: (st) => L(`回傳 ${st.result ? 'True' : 'False'}`, `Returned ${st.result ? 'True' : 'False'}`),
   code: `def isValid(self, s: str) -> bool:
