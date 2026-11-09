@@ -1,5 +1,5 @@
 import { randInt } from '../core/engine';
-import { L, type Problem } from '../core/types';
+import { L, type CellMark, type Problem } from '../core/types';
 import { err, isIntArray, isObj, isSorted } from './helpers';
 
 type I = { numbers: number[]; target: number };
@@ -71,10 +71,16 @@ export const twoSumII: Problem<I, S> = {
     const y = nums[r];
     const s = x + y;
     if (a === 'moveL')
-      return L(`${x} + ${y} = ${s} < ${target}，和太小。L 右移換一個比較大的數。`, `${x} + ${y} = ${s} < ${target}: too small. Move L right to a bigger number.`);
+      return L(
+        `${x} + ${y} = ${s} < ${target}，和太小。${x} 配上最大的 ${y} 都不夠，它不可能是答案，丟掉（L 右移）。`,
+        `${x} + ${y} = ${s} < ${target}: too small. Even with the largest number ${y}, ${x} falls short, so it can't be in the answer. Discard it (L moves right).`,
+      );
     if (a === 'moveR')
-      return L(`${x} + ${y} = ${s} > ${target}，和太大。R 左移換一個比較小的數。`, `${x} + ${y} = ${s} > ${target}: too big. Move R left to a smaller number.`);
-    return L(`${x} + ${y} = ${target}，找到了！回傳 [${l + 1}, ${r + 1}]（從 1 開始算）。`, `${x} + ${y} = ${target}. Found it! Return [${l + 1}, ${r + 1}] (1-based).`);
+      return L(
+        `${x} + ${y} = ${s} > ${target}，和太大。${y} 配上最小的 ${x} 都太大，它不可能是答案，丟掉（R 左移）。`,
+        `${x} + ${y} = ${s} > ${target}: too big. Even with the smallest number ${x}, ${y} overshoots, so it can't be in the answer. Discard it (R moves left).`,
+      );
+    return L(`${x} + ${y} = ${target}，配對成功！回傳 [${l + 1}, ${r + 1}]（從 1 開始算）。`, `${x} + ${y} = ${target}. Paired! Return [${l + 1}, ${r + 1}] (1-based).`);
   },
   whyWrong({ nums, target, l, r }, a) {
     const s = nums[l] + nums[r];
@@ -84,22 +90,34 @@ export const twoSumII: Problem<I, S> = {
     return L(`和 ${s} 比 ${target} 小，R 左移只會讓和更小。`, `The sum ${s} is below ${target}. Moving R left only makes it smaller.`);
   },
   hints: ({ nums, target, l, r }) => [
-    L('先算 numbers[L] + numbers[R]，再和 target 比大小。', 'Compute numbers[L] + numbers[R] and compare it with target.'),
+    L('先算最左 + 最右，再和 target 比大小。太小或太大時，想想哪一個數「配誰都不可能」。', 'Add the leftmost and rightmost numbers and compare with target. If it is off, which number cannot work with any partner?'),
     L(`目前的和 = ${nums[l] + nums[r]}，target = ${target}。`, `Current sum = ${nums[l] + nums[r]}, target = ${target}.`),
   ],
   scene({ nums, target, l, r, done }) {
+    const marks: Record<number, CellMark> = {};
+    nums.forEach((_, k) => {
+      if (k < l || k > r) marks[k] = 'gone';
+    });
+    if (done) {
+      marks[l] = 'good';
+      marks[r] = 'good';
+    }
+    const live = nums.map((_, k) => !done && k >= l && k <= r);
     return [
       {
         kind: 'array',
         id: 'nums',
-        label: L('numbers', 'numbers'),
+        label: L('numbers（拖曳最左或最右的數）', 'numbers (drag the leftmost or rightmost number)'),
         values: nums,
         pointers: [
           { name: 'L', index: l, color: 'a' },
           { name: 'R', index: r, color: 'b' },
         ],
-        active: [l, r],
-        marks: done ? { [l]: 'good', [r]: 'good' } : { [l]: 'focus', [r]: 'focus' },
+        marks,
+        dragPrefix: 'n',
+        dropPrefix: 'n',
+        dragMask: live,
+        dropMask: live,
       },
       {
         kind: 'vars',
@@ -109,7 +127,51 @@ export const twoSumII: Problem<I, S> = {
           { name: 'target', value: target },
         ],
       },
+      {
+        kind: 'zones',
+        id: 'zones',
+        zones: [{ id: 'trash', label: L('🗑️ 丟掉（不可能是答案的數）', "🗑️ Discard (can't be in the answer)"), tone: 'trash' }],
+      },
     ];
+  },
+  drag: {
+    instructions: L(
+      '只看最左和最右兩個數。和不等於 target 時，把「不可能是答案」的那個數拖進 🗑️；和剛好等於 target，就把一個拖到另一個上面配對。',
+      "Look only at the leftmost and rightmost numbers. If their sum isn't target, drag the one that can't be in the answer into 🗑️. If it equals target, drag one onto the other to pair them.",
+    ),
+    moves({ nums, target, l, r }) {
+      const sum = nums[l] + nums[r];
+      if (sum < target) return [{ action: 'moveL', from: `n:${l}`, to: 'trash' }];
+      if (sum > target) return [{ action: 'moveR', from: `n:${r}`, to: 'trash' }];
+      return [
+        { action: 'found', from: `n:${l}`, to: `n:${r}` },
+        { action: 'found', from: `n:${r}`, to: `n:${l}` },
+      ];
+    },
+    whyWrong({ nums, target, l, r }, from, to) {
+      const k = Number(from.split(':')[1]);
+      const x = nums[l];
+      const y = nums[r];
+      const sum = x + y;
+      if (k !== l && k !== r)
+        return L(`${nums[k]} 不在兩端。現在只比較最左邊的 ${x} 和最右邊的 ${y}。`, `${nums[k]} is not at either end. Compare only the leftmost ${x} and the rightmost ${y}.`);
+      if (to === 'trash') {
+        if (sum === target) return L(`${x} + ${y} 剛好等於 ${target}，不用丟，把它們配對！`, `${x} + ${y} equals ${target}. Don't discard; pair them!`);
+        if (k === l)
+          return L(
+            `和 ${sum} 已經太大了。丟掉 ${x} 會換上更大的數，和只會更大。該丟的是最大的 ${y}。`,
+            `The sum ${sum} is already too big. Dropping ${x} brings in a bigger number, so the sum only grows. Discard the largest, ${y}.`,
+          );
+        return L(
+          `和 ${sum} 還太小。丟掉 ${y} 會換上更小的數，和只會更小。該丟的是最小的 ${x}。`,
+          `The sum ${sum} is still too small. Dropping ${y} brings in a smaller number, so the sum only shrinks. Discard the smallest, ${x}.`,
+        );
+      }
+      const j = Number(to.split(':')[1]);
+      const other = k === l ? r : l;
+      if (j !== other) return L(`要和另一端的 ${nums[other]} 配對。`, `Pair it with ${nums[other]} at the other end.`);
+      return L(`${x} + ${y} = ${sum}，不等於 ${target}，不能配對。`, `${x} + ${y} = ${sum}, not ${target}, so they can't be paired.`);
+    },
   },
   result: (st) => L(`回傳 [${st.ans?.join(', ')}]`, `Returned [${st.ans?.join(', ')}]`),
   code: `def twoSum(self, numbers: List[int], target: int) -> List[int]:
