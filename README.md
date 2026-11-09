@@ -25,9 +25,11 @@ npm install
 npm run dev      # 本機開發
 npm test         # 每題用 300 組隨機測資驗證
 npm run build
+npm run deploy   # 測試 + 建置後，把 dist/ 推到 gh-pages 分支
 ```
 
-推上 `main` 後，GitHub Actions 會自動部署到 GitHub Pages。第一次要先到 Settings → Pages，把 Source 設成「GitHub Actions」。
+網站：https://mshmwr.github.io/algo-sim/
+（GitHub Pages 設定：Settings → Pages → Source 選「Deploy from a branch」，分支 `gh-pages`、資料夾 `/ (root)`。）
 
 ## 架構
 
