@@ -1,5 +1,10 @@
 import type { CategoryId, Problem } from '../core/types';
 import { binarySearch } from './binarySearch';
+import { searchMatrix } from './searchMatrix';
+import { kokoBananas } from './kokoBananas';
+import { searchRotated } from './searchRotated';
+import { timeMap } from './timeMap';
+import { medianTwoArrays } from './medianTwoArrays';
 import { buySellStock } from './buySellStock';
 import { containerWater } from './containerWater';
 import { dailyTemperatures } from './dailyTemperatures';
@@ -41,7 +46,12 @@ export const PROBLEMS: Problem[] = [
   carFleet,
   largestRectangle,
   binarySearch,
+  searchMatrix,
+  kokoBananas,
   findMinRotated,
+  searchRotated,
+  timeMap,
+  medianTwoArrays,
 ];
 
 export const problemById = (id: string) => PROBLEMS.find((p) => p.id === id);
