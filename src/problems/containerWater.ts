@@ -21,6 +21,7 @@ export const containerWater: Problem<I, S> = {
     '面積 = 較矮的牆 × 寬度。從最寬開始，每次移動較矮的那面牆。移動較高的牆時寬度變小，高度又被較矮的牆限制，面積不可能變大。',
     'Area = shorter wall × width. Start at the widest pair and always move the shorter wall. Moving the taller wall shrinks the width while the shorter wall still caps the height, so the area cannot grow.',
   ),
+  complexity: { time: 'O(n)', space: 'O(1)', why: L('每一步移動較矮的牆，L 和 R 合起來最多走 n 步。暴力解要算每一對牆的面積，是 O(n²)。', 'Each step moves the shorter wall, so L and R take at most n steps in total. Checking every pair of walls is O(n²).') },
   examples: [{ height: [1, 8, 6, 2, 5, 4, 8, 3, 7] }, { height: [4, 3, 2, 1, 4] }, { height: [2, 3, 10, 5, 7, 8, 9] }],
   random: () => ({ height: Array.from({ length: randInt(6, 10) }, () => randInt(1, 9)) }),
   validate(x) {

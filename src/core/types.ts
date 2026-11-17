@@ -141,6 +141,8 @@ export interface Problem<I = any, S = any> {
   description: L10n;
   /** The key idea behind the approach. */
   insight: L10n;
+  /** Big-O of the reference solution, with a short why (vs brute force). */
+  complexity: { time: string; space: string; why: L10n };
   examples: I[];
   random(): I;
   /** Returns an error message when a custom input is invalid. */

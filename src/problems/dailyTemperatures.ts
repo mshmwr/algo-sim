@@ -19,6 +19,7 @@ export const dailyTemperatures: Problem<I, S> = {
     '用單調遞減堆疊存「還在等更熱日子」的那些天。今天比頂端那天熱，就幫它結算並彈出，一直彈到不比頂端熱為止，再把今天放進去。',
     'Keep a monotonically decreasing stack of days still waiting for a warmer day. While today is warmer than the top, settle and pop it. Then push today.',
   ),
+  complexity: { time: 'O(n)', space: 'O(n)', why: L('雖然 for 裡面還有 while，但每一天最多被 push 一次、pop 一次，總操作數是 2n，攤銷下來是 O(n)。暴力解對每一天往後找，是 O(n²)。堆疊最多存 n 天。', 'Although a while sits inside the for, each day is pushed once and popped at most once: 2n operations in total, so O(n) amortized. Scanning ahead from every day is O(n²). The stack holds up to n days.') },
   examples: [
     { temperatures: [73, 74, 75, 71, 69, 72, 76, 73] },
     { temperatures: [30, 40, 50, 60] },

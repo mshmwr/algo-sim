@@ -27,6 +27,7 @@ export const binarySearch: Problem<I, S> = {
     '每次看搜尋範圍正中間的 M：比 target 小就丟掉左半，比 target 大就丟掉右半。範圍每次減半，L > R 代表範圍空了。',
     'Look at the middle M of the search range: too small → drop the left half, too big → drop the right half. The range halves each step; L > R means it is empty.',
   ),
+  complexity: { time: 'O(log n)', space: 'O(1)', why: L('每一步把搜尋範圍砍半，n 筆資料最多看 log₂ n 次（100 萬筆約 20 次）。只用 L、R、M 三個變數。', 'Each step halves the range, so n items take at most log₂ n looks (about 20 for a million). Only L, R and M are stored.') },
   examples: [
     { nums: [-1, 0, 3, 5, 9, 12], target: 9 },
     { nums: [-1, 0, 3, 5, 9, 12], target: 2 },

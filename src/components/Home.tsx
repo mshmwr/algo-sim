@@ -145,6 +145,7 @@ export function Home({ progress }: { progress: ProgressMap }) {
         {groups.map(({ c, items }) => (
           <div key={c.id} className="group">
             <h3>{t(c.name)}</h3>
+            {c.definition && <p className="group-def">{t(c.definition)}</p>}
             <ul className="plist">
               {items.map((p) => {
                 const st = statusOf(progress[p.id]);

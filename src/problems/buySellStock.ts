@@ -19,6 +19,7 @@ export const buySellStock: Problem<I, S> = {
     'L 是買入日，R 是賣出日。R 一路往右掃：比買入價高就算利潤；遇到更低的價格，就把買入日換到那天。',
     'L is the buy day and R is the sell day. Sweep R to the right: if the price is higher than the buy price, compute the profit; if it is lower, buying that day is better, so move L there.',
   ),
+  complexity: { time: 'O(n)', space: 'O(1)', why: L('只掃一次價格，過程中只記住「最低買入價」和「最大利潤」兩個數。暴力解要試每一組買賣日，是 O(n²)。', 'One pass over the prices, remembering only the lowest buy price and the best profit. Trying every buy/sell pair is O(n²).') },
   examples: [{ prices: [7, 1, 5, 3, 6, 4] }, { prices: [7, 6, 4, 3, 1] }, { prices: [3, 8, 2, 5, 9, 1, 4] }],
   random: () => ({ prices: Array.from({ length: randInt(6, 10) }, () => randInt(1, 15)) }),
   validate(x) {

@@ -50,6 +50,7 @@ export const evalRPN: Problem<I, S> = {
     '數字直接放進堆疊。遇到運算子就彈出兩個數：先彈出的是右邊的 b，後彈出的是左邊的 a，算 a ○ b 再放回去。順序對 - 和 / 很重要！',
     'Push numbers. On an operator, pop twice: the first pop is the right operand b, the second is the left operand a. Push a ○ b back. Order matters for - and /!',
   ),
+  complexity: { time: 'O(n)', space: 'O(n)', why: L('每個 token 只處理一次，每次運算是 O(1)。堆疊最多存下所有數字，所以空間是 O(n)。', 'Each token is processed once, and each operation is O(1). The stack can hold all the numbers, so space is O(n).') },
   examples: [
     { tokens: ['2', '1', '+', '3', '*'] },
     { tokens: ['4', '13', '5', '/', '+'] },

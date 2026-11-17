@@ -29,6 +29,7 @@ export const validParentheses: Problem<I, S> = {
     '左括號放進堆疊；遇到右括號時，它必須和堆疊「頂端」的左括號是一對。最後堆疊要是空的。',
     'Push opening brackets. A closing bracket must match the opening bracket on top of the stack. At the end the stack must be empty.',
   ),
+  complexity: { time: 'O(n)', space: 'O(n)', why: L('每個字元只處理一次，push 和 pop 都是 O(1)。最壞情況（全是左括號）堆疊會存下所有字元，所以空間是 O(n)。', 'Each character is handled once, and push / pop are O(1). In the worst case (all opening brackets) the stack holds every character, so space is O(n).') },
   examples: [{ s: '([]{})' }, { s: '([)]' }, { s: '{[()]}(' }],
   random() {
     let s = genValid(randInt(2, 5));

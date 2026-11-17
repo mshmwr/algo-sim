@@ -22,6 +22,7 @@ export const findMinRotated: Problem<I, S> = {
     '把 nums[M] 和 nums[R] 比：nums[M] > nums[R] 代表 M 在前面那段較大的區塊，最小值在 M 右邊；否則 M 到 R 是遞增的，最小值在 M 或它左邊。',
     'Compare nums[M] with nums[R]. If nums[M] > nums[R], M is in the larger left block and the minimum is to its right. Otherwise M..R is increasing, so the minimum is at M or to its left.',
   ),
+  complexity: { time: 'O(log n)', space: 'O(1)', why: L('和二分搜尋一樣，每一步丟掉一半範圍。直接掃一遍找最小值是 O(n)，但題目要求 O(log n)。', 'Like binary search, each step discards half the range. A plain scan for the minimum is O(n), but the problem asks for O(log n).') },
   examples: [{ nums: [3, 4, 5, 1, 2] }, { nums: [4, 5, 6, 7, 0, 1, 2] }, { nums: [11, 13, 15, 17] }],
   random() {
     const a = sortedDistinct(randInt(6, 11), 1, 30);

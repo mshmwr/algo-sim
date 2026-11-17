@@ -60,6 +60,15 @@ describe.each(PROBLEMS.map((p) => [p.id, p] as const))('%s', (_id, p) => {
     for (const line of Object.values(p.lineOf)) expect(line).toBeLessThanOrEqual(n);
   });
 
+  it('has complexity and a category explanation', () => {
+    expect(p.complexity.time).toMatch(/^O\(/);
+    expect(p.complexity.space).toMatch(/^O\(/);
+    expect(p.complexity.why.zh.length).toBeGreaterThan(0);
+    const c = CATEGORIES.find((x) => x.id === p.category)!;
+    expect(c.definition?.zh).toBeTruthy();
+    expect(c.purpose?.en).toBeTruthy();
+  });
+
   it('rejects malformed input', () => {
     expect(p.validate(null)).not.toBeNull();
     expect(p.validate({})).not.toBeNull();

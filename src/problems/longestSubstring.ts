@@ -19,6 +19,7 @@ export const longestSubstring: Problem<I, S> = {
     '用 set 記住視窗裡的字元。R 想加入的字元不在 set 裡就擴張；如果已經在裡面，就從左邊一個一個移除，直到重複的字元離開視窗。',
     'Keep the window characters in a set. If the character at R is new, expand. If it is already in the set, remove characters from the left until the duplicate leaves the window.',
   ),
+  complexity: { time: 'O(n)', space: 'O(min(n, m))', why: L('每個字元最多進視窗一次、出視窗一次，所以是 O(n)。set 最多存 n 個字元，也不會超過字元種類數 m。暴力解檢查每個子字串是 O(n³)。', 'Each character enters and leaves the window at most once, so O(n). The set holds at most n characters and never more than the alphabet size m. Checking every substring is O(n³).') },
   examples: [{ s: 'abcabcbb' }, { s: 'pwwkew' }, { s: 'dvdfabd' }],
   random: () => ({ s: Array.from({ length: randInt(6, 12) }, () => pick('abcde')).join('') }),
   validate(x) {

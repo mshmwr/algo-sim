@@ -5,6 +5,7 @@ import { ui, useLang } from '../i18n';
 import { leetcodeUrl } from '../problems';
 import type { ProblemProgress } from '../progress';
 import { href, navigate } from '../router';
+import { AlgoInfo } from './AlgoInfo';
 import { InputBar } from './InputBar';
 import { LearnMode } from './LearnMode';
 import { PracticeMode } from './PracticeMode';
@@ -73,6 +74,7 @@ export function ProblemPage({ problem, mode, progress, markLearned, markSolved }
             {t(ui.showInsight)}
           </button>
         )}
+        <AlgoInfo key={mode} problem={problem} open={mode === 'learn'} />
       </header>
 
       <div className="tabs" role="tablist">

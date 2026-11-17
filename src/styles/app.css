@@ -1297,3 +1297,58 @@ h2 {
   border-radius: 10px;
   padding: 6px 8px;
 }
+
+/* ---------- algorithm info ---------- */
+.algo-info {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.algo-info summary {
+  cursor: pointer;
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 14.5px;
+}
+.algo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px 20px;
+  padding: 0 14px 14px;
+}
+.algo-grid section {
+  min-width: 0;
+}
+.algo-grid h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.algo-grid p {
+  margin: 0;
+  font-size: 14px;
+}
+.big-o {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.big-o span {
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+.big-o code {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 14px;
+}
+.group-def {
+  margin: -2px 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 75ch;
+}

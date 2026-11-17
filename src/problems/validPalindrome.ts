@@ -22,6 +22,7 @@ export const validPalindrome: Problem<I, S> = {
     'L 從左、R 從右往中間走：遇到標點空白就跳過，遇到英數就互相比較。只要有一對不同就不是回文。',
     'Walk L from the left and R from the right: skip punctuation and spaces, compare letters/digits. One mismatch means it is not a palindrome.',
   ),
+  complexity: { time: 'O(n)', space: 'O(1)', why: L('L 和 R 合起來只把每個字元看過一次；只用兩個索引，不需要額外建立清理過的字串。', 'L and R together look at each character once, and only two indices are stored; no cleaned copy of the string is built.') },
   examples: [{ s: 'race a car' }, { s: "No 'x' in Nixon" }, { s: 'A man, a plan, a canal: Panama' }],
   random() {
     const letters = 'abcxyz';

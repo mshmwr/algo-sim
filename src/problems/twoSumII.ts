@@ -25,6 +25,7 @@ export const twoSumII: Problem<I, S> = {
     '陣列有序，所以 L 右移和會變大、R 左移和會變小。和太小就移 L，和太大就移 R。',
     'Because the array is sorted, moving L right increases the sum and moving R left decreases it. Too small → move L; too big → move R.',
   ),
+  complexity: { time: 'O(n)', space: 'O(1)', why: L('每一步丟掉一個數，最多 n 步。暴力解要試每一對，是 O(n²)；用雜湊表雖然也是 O(n)，但要 O(n) 的額外空間。', 'Each step discards one number, so at most n steps. Trying every pair is O(n²); a hash map is also O(n) but needs O(n) extra space.') },
   examples: [
     { numbers: [2, 7, 11, 15], target: 9 },
     { numbers: [1, 3, 4, 5, 7, 10, 11], target: 9 },
