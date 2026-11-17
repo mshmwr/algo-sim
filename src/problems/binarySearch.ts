@@ -1,5 +1,5 @@
 import { randInt } from '../core/engine';
-import { L, type Problem } from '../core/types';
+import { L, TAP, type CellMark, type DragMove, type Problem } from '../core/types';
 import { err, isIntArray, isObj } from './helpers';
 
 type I = { nums: number[]; target: number };
@@ -96,6 +96,12 @@ export const binarySearch: Problem<I, S> = {
   ],
   scene({ nums, target, l, r, done, ans }) {
     const m = mid(l, r);
+    const marks: Record<number, CellMark> = {};
+    nums.forEach((_, k) => {
+      if (k < l || k > r) marks[k] = 'gone';
+    });
+    if (done && ans !== null && ans >= 0) marks[ans] = 'good';
+    else if (l <= r) marks[m] = 'focus';
     const pointers: { name: string; index: number; color: 'a' | 'b' | 'c' }[] = [
       { name: 'L', index: l, color: 'a' },
       { name: 'R', index: r, color: 'b' },
@@ -105,11 +111,12 @@ export const binarySearch: Problem<I, S> = {
       {
         kind: 'array',
         id: 'nums',
-        label: L('nums', 'nums'),
+        label: L('nums（抓住要丟的那一半裡任一格）', 'nums (grab any cell of the half to discard)'),
         values: nums,
         pointers,
-        active: l <= r ? [l, r] : null,
-        marks: done && ans !== null && ans >= 0 ? { [ans]: 'good' } : l <= r ? { [m]: 'focus' } : {},
+        marks,
+        dragPrefix: 'n',
+        dragMask: nums.map((_, k) => !done && k >= l && k <= r),
       },
       {
         kind: 'vars',
@@ -120,7 +127,54 @@ export const binarySearch: Problem<I, S> = {
           { name: 'target', value: target },
         ],
       },
+      {
+        kind: 'zones',
+        id: 'zones',
+        zones: [
+          { id: 'dropLeft', label: L('🗑️⬅ 丟掉左半（L … M）', '🗑️⬅ Discard left half (L … M)'), tone: 'trash' },
+          { id: 'dropRight', label: L('丟掉右半（M … R）➡🗑️', 'Discard right half (M … R) ➡🗑️'), tone: 'trash' },
+          { id: 'found', label: L('🎯 找到了（回傳 M）', '🎯 Found it (return M)'), tone: 'good' },
+          { id: 'none', label: L('✗ 範圍空了（回傳 -1）', '✗ Range is empty (return -1)'), tone: 'bad' },
+        ],
+      },
     ];
+  },
+  drag: {
+    instructions: L(
+      '比較中間的 nums[M] 和 target：不可能有答案的那一半，抓住其中任一格拖到對應的 🗑️，整段一起丟掉。nums[M] 就是 target 時，把 M 拖到 🎯。範圍空了就點 ✗。',
+      "Compare the middle nums[M] with target. Grab any cell of the half that can't hold the answer and drag it to the matching 🗑️ to discard that whole half. If nums[M] is target, drag M to 🎯. If the range is empty, tap ✗.",
+    ),
+    tapZones: ['none'],
+    moves({ nums, target, l, r }) {
+      if (l > r) return [{ action: 'notFound', from: TAP, to: 'none' }];
+      const m = mid(l, r);
+      const v = nums[m];
+      if (v === target) return [{ action: 'found', from: `n:${m}`, to: 'found' }];
+      const out: DragMove[] = [];
+      if (v < target) for (let k = l; k <= m; k++) out.push({ action: 'goRight', from: `n:${k}`, to: 'dropLeft' });
+      else for (let k = m; k <= r; k++) out.push({ action: 'goLeft', from: `n:${k}`, to: 'dropRight' });
+      return out;
+    },
+    whyWrong({ nums, target, l, r }, from, to) {
+      if (l > r) return L('L > R，搜尋範圍已經空了，點 ✗ 回傳 -1。', 'L > R: the range is empty. Tap ✗ to return -1.');
+      if (to === 'none') return L('L ≤ R，範圍還沒空，還要繼續找。', 'L ≤ R: the range is not empty yet, so keep searching.');
+      const m = mid(l, r);
+      const v = nums[m];
+      const k = Number(from.split(':')[1]);
+      if (to === 'found') {
+        if (k !== m) return L(`要比對的是中間的 nums[M] = ${v}，不是 ${nums[k]}。`, `The one to check is the middle nums[M] = ${v}, not ${nums[k]}.`);
+        return L(`${v} ≠ ${target}，還沒找到。`, `${v} ≠ ${target}. Not found yet.`);
+      }
+      if (v === target) return L(`nums[M] = ${v} 就是 target！把 M 拖到 🎯。`, `nums[M] = ${v} is the target! Drag M to 🎯.`);
+      if (to === 'dropLeft') {
+        if (v > target)
+          return L(`nums[M] = ${v} 比 ${target} 大，左半的數更小，答案只可能在左半。要丟的是右半。`, `nums[M] = ${v} is bigger than ${target}; the left half holds the smaller numbers, so the answer can only be there. Discard the right half.`);
+        return L(`${nums[k]} 在 M 右邊，不屬於左半。抓 L 到 M 之間的格子。`, `${nums[k]} is right of M, not in the left half. Grab a cell between L and M.`);
+      }
+      if (v < target)
+        return L(`nums[M] = ${v} 比 ${target} 小，右半的數更大，答案只可能在右半。要丟的是左半。`, `nums[M] = ${v} is smaller than ${target}; the right half holds the bigger numbers, so the answer can only be there. Discard the left half.`);
+      return L(`${nums[k]} 在 M 左邊，不屬於右半。抓 M 到 R 之間的格子。`, `${nums[k]} is left of M, not in the right half. Grab a cell between M and R.`);
+    },
   },
   result: (st) => L(`回傳 ${st.ans}`, `Returned ${st.ans}`),
   code: `def search(self, nums: List[int], target: int) -> int:

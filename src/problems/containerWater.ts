@@ -1,5 +1,5 @@
 import { randInt } from '../core/engine';
-import { L, type Problem } from '../core/types';
+import { L, type CellMark, type Problem } from '../core/types';
 import { err, isIntArray, isObj } from './helpers';
 
 type I = { height: number[] };
@@ -79,11 +79,20 @@ export const containerWater: Problem<I, S> = {
     L(`height[L] = ${h[l]}，height[R] = ${h[r]}。`, `height[L] = ${h[l]}, height[R] = ${h[r]}.`),
   ],
   scene({ h, l, r, best }) {
+    const done = l >= r;
+    const marks: Record<number, CellMark> = {};
+    h.forEach((_, k) => {
+      if (k < l || k > r) marks[k] = 'gone';
+    });
+    if (!done) {
+      marks[l] = 'focus';
+      marks[r] = 'focus';
+    }
     return [
       {
         kind: 'array',
         id: 'h',
-        label: L('height', 'height'),
+        label: L('height（拖曳兩端的牆）', 'height (drag a wall at either end)'),
         values: h,
         bars: true,
         pointers: [
@@ -91,7 +100,9 @@ export const containerWater: Problem<I, S> = {
           { name: 'R', index: r, color: 'b' },
         ],
         window: l < r ? [l, r] : null,
-        marks: { [l]: 'focus', [r]: 'focus' },
+        marks,
+        dragPrefix: 'h',
+        dragMask: h.map((_, k) => !done && k >= l && k <= r),
       },
       {
         kind: 'vars',
@@ -103,7 +114,36 @@ export const containerWater: Problem<I, S> = {
           { name: 'res', value: best, highlight: true },
         ],
       },
+      {
+        kind: 'zones',
+        id: 'zones',
+        zones: [{ id: 'trash', label: L('🗑️ 丟掉（不可能圍出更大面積的牆）', "🗑️ Discard (a wall that can't give a bigger area)"), tone: 'trash' }],
+      },
     ];
+  },
+  drag: {
+    instructions: L(
+      '面積 = 較矮的牆 × 寬度。看兩端的牆，把「留著也不可能圍出更大面積」的那一面拖進 🗑️。每丟一面，系統會算新的面積。',
+      "Area = shorter wall × width. Look at the two end walls and drag the one that can't lead to a bigger area into 🗑️. Each discard computes the new area.",
+    ),
+    moves({ h, l, r }) {
+      const L_ = { action: 'moveL', from: `h:${l}`, to: 'trash' };
+      const R_ = { action: 'moveR', from: `h:${r}`, to: 'trash' };
+      if (h[l] < h[r]) return [L_];
+      if (h[l] > h[r]) return [R_];
+      return [R_, L_];
+    },
+    whyWrong({ h, l, r }, from) {
+      const k = Number(from.split(':')[1]);
+      if (k !== l && k !== r)
+        return L(`高度 ${h[k]} 的牆不在兩端。現在只比較最左邊的 ${h[l]} 和最右邊的 ${h[r]}。`, `The wall of height ${h[k]} isn't at an end. Compare only the leftmost ${h[l]} and the rightmost ${h[r]}.`);
+      const short = Math.min(h[l], h[r]);
+      const tall = Math.max(h[l], h[r]);
+      return L(
+        `${tall} 是較高的牆，要留著。丟掉它會讓寬度變小，而高度仍被較矮的 ${short} 限制，面積只會變小。該丟的是較矮的 ${short}。`,
+        `${tall} is the taller wall, so keep it. Dropping it shrinks the width while the shorter ${short} still caps the height, so the area only shrinks. Discard the shorter ${short}.`,
+      );
+    },
   },
   result: (st) => L(`最大面積 = ${st.best}`, `Max area = ${st.best}`),
   code: `def maxArea(self, height: List[int]) -> int:

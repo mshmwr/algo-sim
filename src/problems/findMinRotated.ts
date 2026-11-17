@@ -1,5 +1,5 @@
 import { randInt } from '../core/engine';
-import { L, type Problem } from '../core/types';
+import { L, TAP, type CellMark, type DragMove, type Problem } from '../core/types';
 import { err, isIntArray, isObj } from './helpers';
 import { sortedDistinct } from './binarySearch';
 
@@ -86,6 +86,15 @@ export const findMinRotated: Problem<I, S> = {
   ],
   scene({ nums, l, r, done }) {
     const m = mid(l, r);
+    const marks: Record<number, CellMark> = {};
+    nums.forEach((_, k) => {
+      if (k < l || k > r) marks[k] = 'gone';
+    });
+    if (done || l === r) marks[l] = 'good';
+    else {
+      marks[m] = 'focus';
+      marks[r] = 'focus';
+    }
     const pointers: { name: string; index: number; color: 'a' | 'b' | 'c' }[] = [
       { name: 'L', index: l, color: 'a' },
       { name: 'R', index: r, color: 'b' },
@@ -95,12 +104,13 @@ export const findMinRotated: Problem<I, S> = {
       {
         kind: 'array',
         id: 'nums',
-        label: L('nums', 'nums'),
+        label: L('nums（抓住要丟的那一半裡任一格）', 'nums (grab any cell of the half to discard)'),
         values: nums,
         bars: true,
         pointers,
-        active: [l, r],
-        marks: done || l === r ? { [l]: 'good' } : { [m]: 'focus', [r]: 'focus' },
+        marks,
+        dragPrefix: 'n',
+        dragMask: nums.map((_, k) => !done && k >= l && k <= r),
       },
       {
         kind: 'vars',
@@ -110,7 +120,53 @@ export const findMinRotated: Problem<I, S> = {
           { name: 'nums[R]', value: nums[r], highlight: true },
         ],
       },
+      {
+        kind: 'zones',
+        id: 'zones',
+        zones: [
+          { id: 'dropLeft', label: L('🗑️⬅ 丟掉左半（L … M）', '🗑️⬅ Discard left half (L … M)'), tone: 'trash' },
+          { id: 'dropRight', label: L('丟掉 M 右邊（M+1 … R）➡🗑️', 'Discard right of M (M+1 … R) ➡🗑️'), tone: 'trash' },
+          { id: 'found', label: L('🎯 這就是最小值', "🎯 That's the minimum"), tone: 'good' },
+        ],
+      },
     ];
+  },
+  drag: {
+    instructions: L(
+      '比較 nums[M] 和 nums[R]，判斷最小值在哪一邊，把另一邊抓起來拖進對應的 🗑️。注意：往左縮時 M 要保留，因為它可能就是最小值。只剩一格時，把它拖到 🎯（或直接點 🎯）。',
+      'Compare nums[M] with nums[R] to see which side holds the minimum, then drag the other side into the matching 🗑️. Note: when shrinking left, keep M, since it may be the minimum. When one cell is left, drag it to 🎯 (or tap 🎯).',
+    ),
+    tapZones: ['found'],
+    moves({ nums, l, r }) {
+      if (l === r) return [{ action: 'return', from: `n:${l}`, to: 'found' }, { action: 'return', from: TAP, to: 'found' }];
+      const m = mid(l, r);
+      const out: DragMove[] = [];
+      if (nums[m] > nums[r]) for (let k = l; k <= m; k++) out.push({ action: 'goRight', from: `n:${k}`, to: 'dropLeft' });
+      else for (let k = m + 1; k <= r; k++) out.push({ action: 'goLeft', from: `n:${k}`, to: 'dropRight' });
+      return out;
+    },
+    whyWrong({ nums, l, r }, from, to) {
+      if (l === r) return L(`範圍只剩 ${nums[l]} 一個，它就是最小值，拖到 🎯。`, `Only ${nums[l]} remains; it's the minimum. Drag it to 🎯.`);
+      if (to === 'found') return L('範圍裡還有好幾個數字，還不確定誰最小。', 'Several numbers remain, so the minimum is not certain yet.');
+      const m = mid(l, r);
+      const k = Number(from.split(':')[1]);
+      const goRight = nums[m] > nums[r];
+      if (to === 'dropLeft') {
+        if (!goRight)
+          return L(
+            `nums[M] = ${nums[m]} < nums[R] = ${nums[r]}：M 到 R 是遞增的，最小值在 M 或它的左邊，左半要留著。該丟的是 M 右邊。`,
+            `nums[M] = ${nums[m]} < nums[R] = ${nums[r]}: M..R is increasing, so the minimum is at M or to its left. Keep the left half; discard right of M.`,
+          );
+        return L(`${nums[k]} 在 M 右邊，不屬於左半。抓 L 到 M 之間的格子。`, `${nums[k]} is right of M, not in the left half. Grab a cell between L and M.`);
+      }
+      if (goRight)
+        return L(
+          `nums[M] = ${nums[m]} > nums[R] = ${nums[r]}：M 在前段較大的區塊，「斷點」和最小值都在 M 右邊，右邊要留著。該丟的是左半。`,
+          `nums[M] = ${nums[m]} > nums[R] = ${nums[r]}: M is in the larger front block; the drop and the minimum are right of M. Keep the right side; discard the left half.`,
+        );
+      if (k === m) return L('M 要保留，它本身可能就是最小值。只丟 M 右邊的格子。', 'Keep M; it may be the minimum itself. Discard only the cells right of M.');
+      return L(`${nums[k]} 在 M 左邊，不屬於要丟的範圍。抓 M 右邊的格子。`, `${nums[k]} is left of M, outside the part to discard. Grab a cell right of M.`);
+    },
   },
   result: (st) => L(`最小值 = ${st.nums[st.l]}`, `Minimum = ${st.nums[st.l]}`),
   code: `def findMin(self, nums: List[int]) -> int:
