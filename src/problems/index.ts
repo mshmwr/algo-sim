@@ -6,6 +6,10 @@ import { dailyTemperatures } from './dailyTemperatures';
 import { evalRPN } from './evalRPN';
 import { findMinRotated } from './findMinRotated';
 import { longestSubstring } from './longestSubstring';
+import { charReplacement } from './charReplacement';
+import { permutationInString } from './permutationInString';
+import { minWindow } from './minWindow';
+import { slidingWindowMax } from './slidingWindowMax';
 import { twoSumII } from './twoSumII';
 import { threeSum } from './threeSum';
 import { trappingRainWater } from './trappingRainWater';
@@ -21,6 +25,10 @@ export const PROBLEMS: Problem[] = [
   trappingRainWater,
   buySellStock,
   longestSubstring,
+  charReplacement,
+  permutationInString,
+  minWindow,
+  slidingWindowMax,
   validParentheses,
   evalRPN,
   dailyTemperatures,
