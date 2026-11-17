@@ -7,6 +7,8 @@ import { evalRPN } from './evalRPN';
 import { findMinRotated } from './findMinRotated';
 import { longestSubstring } from './longestSubstring';
 import { twoSumII } from './twoSumII';
+import { threeSum } from './threeSum';
+import { trappingRainWater } from './trappingRainWater';
 import { validParentheses } from './validParentheses';
 import { validPalindrome } from './validPalindrome';
 
@@ -14,7 +16,9 @@ import { validPalindrome } from './validPalindrome';
 export const PROBLEMS: Problem[] = [
   validPalindrome,
   twoSumII,
+  threeSum,
   containerWater,
+  trappingRainWater,
   buySellStock,
   longestSubstring,
   validParentheses,

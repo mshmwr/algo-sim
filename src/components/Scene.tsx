@@ -25,10 +25,12 @@ function ArrayView({ layer }: { layer: ArrayLayer }) {
   const minV = nums.length ? Math.min(...nums) : 0;
   // Zoom in when values are clustered (e.g. temperatures 69–76) so differences stay visible.
   const base = minV > 0 && minV / maxV > 0.5 ? minV - (maxV - minV) * 0.6 : 0;
-  const barPct = (v: number) => 12 + (88 * (Math.max(v, base) - base)) / Math.max(1, maxV - base);
+  const waterMax = layer.water ? Math.max(1, ...layer.values.map((v, i) => (typeof v === 'number' ? v : 0) + (layer.water![i] ?? 0))) : 0;
+  const barPct = (v: number) =>
+    layer.water ? (100 * Math.max(v, 0)) / waterMax : 12 + (88 * (Math.max(v, base) - base)) / Math.max(1, maxV - base);
   const slots = n + (pointers.some((p) => p.index === n) ? 1 : 0);
   // Shrink cells on narrow screens so the whole array fits.
-  const cellCss = `max(20px, min(${cell}px, calc((100vw - 76px) / ${Math.max(slots, 1)})))`;
+  const cellCss = `max(20px, min(${cell}px, calc((100cqw - 4px) / ${Math.max(slots, 1)})))`;
 
   return (
     <div className="layer layer-array">
@@ -69,7 +71,10 @@ function ArrayView({ layer }: { layer: ArrayLayer }) {
                 >
                   {layer.bars && typeof v === 'number' ? (
                     <>
-                      <div className="bar-wrap">
+                      <div className={`bar-wrap${layer.water ? ' bar-col' : ''}`}>
+                        {layer.water && layer.water[i] > 0 && (
+                          <div className="water" style={{ height: `${(100 * layer.water[i]) / waterMax}%` }} />
+                        )}
                         <div className="bar" style={{ height: `${barPct(v)}%` }} />
                       </div>
                       <span className="bar-val">{v}</span>

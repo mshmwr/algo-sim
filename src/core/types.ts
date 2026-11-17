@@ -45,6 +45,8 @@ export interface ArrayLayer {
   marks?: Record<number, CellMark>;
   /** Draw values as vertical bars (heights / prices). */
   bars?: boolean;
+  /** Water stacked on top of each bar (trapping rain water). Implies a linear 0-based scale. */
+  water?: number[];
   /** Practice drag & drop: cells become draggable as `${dragPrefix}:${i}`. */
   dragPrefix?: string;
   /** Practice drag & drop: cells become drop targets as `${dropPrefix}:${i}`. */

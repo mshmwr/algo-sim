@@ -1381,3 +1381,19 @@ h2 {
     opacity: 0;
   }
 }
+
+.bar-wrap.bar-col {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+.water {
+  width: 100%;
+  background: color-mix(in srgb, var(--ptr-a) 45%, transparent);
+  border-radius: 3px 3px 0 0;
+  animation: pop-in 0.3s ease-out;
+}
+/* Size array cells from the stage's own width, not the viewport (the code panel takes room on desktop). */
+.array-scroll {
+  container-type: inline-size;
+}
