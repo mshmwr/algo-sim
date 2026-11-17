@@ -45,6 +45,12 @@ export interface ArrayLayer {
   marks?: Record<number, CellMark>;
   /** Draw values as vertical bars (heights / prices). */
   bars?: boolean;
+  /** Grid row: no index row, stuck to the previous compact row. */
+  compact?: boolean;
+  /** Draw a thick divider after every N cells (e.g. 3 for Sudoku boxes). */
+  sepEvery?: number;
+  /** Extra space above this row (e.g. between Sudoku box bands). */
+  gapBefore?: boolean;
   /** Water stacked on top of each bar (trapping rain water). Implies a linear 0-based scale. */
   water?: number[];
   /** Practice drag & drop: cells become draggable as `${dragPrefix}:${i}`. */

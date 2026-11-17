@@ -13,7 +13,19 @@ export interface Category {
 
 /** Ordered like the NeetCode roadmap. Totals sum to 150. */
 export const CATEGORIES: Category[] = [
-  { id: 'arrays-hashing', name: L('陣列與雜湊', 'Arrays & Hashing'), total: 9 },
+  {
+    id: 'arrays-hashing',
+    name: L('陣列與雜湊', 'Arrays & Hashing'),
+    total: 9,
+    definition: L(
+      '雜湊表（Python 的 dict / set）用「鍵」直接算出存放位置，查詢、新增、刪除平均都是 O(1)。陣列題常搭配它記錄「看過什麼、出現幾次、在哪裡」。',
+      'A hash table (Python dict / set) computes where a key lives directly from the key, so lookup, insert and delete are O(1) on average. Array problems pair it with records of what was seen, how often, and where.',
+    ),
+    purpose: L(
+      '把「每個元素都回頭掃一遍」的 O(n²) 降到 O(n)：找重複、找配對（補數）、計數、分組都適用。代價是 O(n) 的額外空間。另外，前綴積、桶子排序這類「先算好再查」的技巧也常出現在這個分類。',
+      'Turns "look back over everything for each element" (O(n²)) into O(n): duplicates, complements, counting and grouping. The cost is O(n) extra space. Precompute-then-look-up tricks such as prefix products and bucket sort also live here.',
+    ),
+  },
   {
     id: 'two-pointers',
     name: L('雙指標', 'Two Pointers'),

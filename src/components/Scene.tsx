@@ -33,8 +33,8 @@ function ArrayView({ layer }: { layer: ArrayLayer }) {
   const cellCss = `max(20px, min(${cell}px, calc((100cqw - 4px) / ${Math.max(slots, 1)})))`;
 
   return (
-    <div className="layer layer-array">
-      <div className="layer-label">{t(layer.label)}</div>
+    <div className={`layer layer-array${layer.compact ? ' compact' : ''}${layer.gapBefore ? ' gap-before' : ''}`}>
+      {(!layer.compact || t(layer.label)) && <div className="layer-label">{t(layer.label)}</div>}
       <div className="array-scroll">
         <div className="array" style={{ width: `calc(var(--cell) * ${slots})`, ['--cell' as string]: cellCss }}>
           {pointers.length > 0 && (
@@ -58,7 +58,8 @@ function ArrayView({ layer }: { layer: ArrayLayer }) {
                 layer.active === undefined ? false : layer.active === null ? true : i < layer.active[0] || i > layer.active[1];
               const inWin = layer.window ? i >= layer.window[0] && i <= layer.window[1] : false;
               const mark = layer.marks?.[i];
-              const cls = ['cell', dim && !mark ? 'dim' : '', inWin ? 'win' : '', mark ? `mark-${mark}` : '']
+              const sep = !!layer.sepEvery && (i + 1) % layer.sepEvery === 0 && i < layer.values.length - 1;
+              const cls = ['cell', sep ? 'sep-r' : '', dim && !mark ? 'dim' : '', inWin ? 'win' : '', mark ? `mark-${mark}` : '']
                 .filter(Boolean)
                 .join(' ');
               return (
@@ -86,13 +87,15 @@ function ArrayView({ layer }: { layer: ArrayLayer }) {
               );
             })}
           </div>
-          <div className="indices">
-            {layer.values.map((_, i) => (
-              <div key={i} className="idx">
-                {i}
-              </div>
-            ))}
-          </div>
+          {!layer.compact && (
+            <div className="indices">
+              {layer.values.map((_, i) => (
+                <div key={i} className="idx">
+                  {i}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

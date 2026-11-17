@@ -1,4 +1,13 @@
 import type { CategoryId, Problem } from '../core/types';
+import { containsDuplicate } from './containsDuplicate';
+import { validAnagram } from './validAnagram';
+import { twoSum } from './twoSum';
+import { groupAnagrams } from './groupAnagrams';
+import { topKFrequent } from './topKFrequent';
+import { productExceptSelf } from './productExceptSelf';
+import { encodeDecode } from './encodeDecode';
+import { validSudoku } from './validSudoku';
+import { longestConsecutive } from './longestConsecutive';
 import { binarySearch } from './binarySearch';
 import { searchMatrix } from './searchMatrix';
 import { kokoBananas } from './kokoBananas';
@@ -27,6 +36,15 @@ import { validPalindrome } from './validPalindrome';
 
 /** All playable problems, in NeetCode roadmap order within each category. */
 export const PROBLEMS: Problem[] = [
+  containsDuplicate,
+  validAnagram,
+  twoSum,
+  groupAnagrams,
+  topKFrequent,
+  encodeDecode,
+  productExceptSelf,
+  validSudoku,
+  longestConsecutive,
   validPalindrome,
   twoSumII,
   threeSum,

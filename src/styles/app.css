@@ -1397,3 +1397,21 @@ h2 {
 .array-scroll {
   container-type: inline-size;
 }
+
+/* compact grid rows (e.g. Sudoku) */
+.scene:has(> .layer-array.compact) {
+  gap: 0;
+}
+.scene > .layer-array.compact.gap-before {
+  margin-top: 4px;
+}
+.layer-array.compact .cell {
+  border-radius: 0 !important;
+  margin-bottom: -1px;
+}
+.cell.sep-r {
+  border-right: 3px solid var(--muted);
+}
+.scene > .layer-zones {
+  margin-top: 12px;
+}
