@@ -44,8 +44,23 @@ export function useDroppable(id: string | undefined) {
 const esc = (id: string) => CSS.escape(id);
 
 /** Loops a translucent tile from the hinted source to the hinted target. */
-export function DemoGhost({ root, from, to, label }: { root: RefObject<HTMLElement | null>; from: string; to: string; label: string }) {
-  const [geo, setGeo] = useState<{ x: number; y: number; dx: number; dy: number; w: number; h: number } | null>(null);
+export function DemoGhost({
+  root,
+  from,
+  to,
+  label,
+  once,
+  durationMs = 1800,
+}: {
+  root: RefObject<HTMLElement | null>;
+  from: string;
+  to: string;
+  label?: string;
+  /** Play a single flight instead of looping. */
+  once?: boolean;
+  durationMs?: number;
+}) {
+  const [geo, setGeo] = useState<{ x: number; y: number; dx: number; dy: number; w: number; h: number; label: string } | null>(null);
   const [tick, setTick] = useState(0);
 
   useLayoutEffect(() => {
@@ -64,23 +79,24 @@ export function DemoGhost({ root, from, to, label }: { root: RefObject<HTMLEleme
       const y = ra.top - base.top + ra.height / 2 - h / 2;
       const tx = rb.left - base.left + rb.width / 2 - w / 2;
       const ty = rb.top - base.top + Math.min(rb.height, 60) / 2 - h / 2;
-      setGeo({ x, y, dx: tx - x, dy: ty - y, w, h });
+      setGeo({ x, y, dx: tx - x, dy: ty - y, w, h, label: label ?? a.dataset.dragLabel ?? a.textContent ?? '' });
     };
     measure();
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
-  }, [root, from, to, tick]);
+  }, [root, from, to, label, tick]);
 
   // Re-measure periodically in case layout shifts (fonts, scroll containers).
   useEffect(() => {
+    if (once) return;
     const id = window.setInterval(() => setTick((t) => t + 1), 1500);
     return () => window.clearInterval(id);
-  }, []);
+  }, [once]);
 
   if (!geo) return null;
   return (
     <div
-      className="demo-ghost"
+      className={`demo-ghost${once ? ' once' : ''}`}
       aria-hidden
       style={{
         left: geo.x,
@@ -89,9 +105,10 @@ export function DemoGhost({ root, from, to, label }: { root: RefObject<HTMLEleme
         height: geo.h,
         ['--dx' as string]: `${geo.dx}px`,
         ['--dy' as string]: `${geo.dy}px`,
+        animationDuration: `${durationMs}ms`,
       }}
     >
-      {label}
+      {geo.label}
     </div>
   );
 }

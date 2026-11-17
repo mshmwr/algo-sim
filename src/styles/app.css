@@ -1352,3 +1352,32 @@ h2 {
   color: var(--muted);
   max-width: 75ch;
 }
+
+/* walkthrough: tiles are shown as movable but not interactive */
+.learn-stage .draggable {
+  cursor: default;
+}
+.learn-stage .cell.draggable:hover,
+.learn-stage .stack-item.draggable:hover {
+  box-shadow: none;
+}
+.demo-ghost.once {
+  animation-name: fly-once;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.35, 0.1, 0.25, 1);
+}
+@keyframes fly-once {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.95;
+  }
+  85% {
+    transform: translate(var(--dx), var(--dy)) scale(1.05);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(1);
+    opacity: 0;
+  }
+}

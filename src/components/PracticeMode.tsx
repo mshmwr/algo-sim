@@ -149,11 +149,6 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
     glowTo: move && (isTap ? hintLevel >= 2 : hintLevel >= 3) ? move.to : null,
   };
 
-  const demoLabel = (() => {
-    if (!move || hintLevel < 3) return '';
-    const el = stageRef.current?.querySelector(`[data-drag-id="${CSS.escape(move.from)}"]`) as HTMLElement | null;
-    return el?.dataset.dragLabel ?? '';
-  })();
 
   return (
     <div className="mode-grid">
@@ -168,7 +163,7 @@ export function PracticeMode({ problem, input, onSolved, onRandom, onWatch }: Pr
             onPointerDown={drag.onPointerDown}
           >
             <Scene layers={problem.scene(state)} />
-            {move && !isTap && hintLevel >= 3 && <DemoGhost root={stageRef} from={move.from} to={move.to} label={demoLabel} />}
+            {move && !isTap && hintLevel >= 3 && <DemoGhost root={stageRef} from={move.from} to={move.to} />}
           </div>
         </DragContext.Provider>
         <FloatingTile f={drag.floating} />

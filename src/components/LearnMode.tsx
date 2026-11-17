@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildTrace } from '../core/engine';
-import type { Problem } from '../core/types';
+import { TAP, type DragMove, type Problem } from '../core/types';
 import { ui, useLang } from '../i18n';
 import { CodePanel } from './CodePanel';
+import { DemoGhost, DragContext, type DragUI } from './drag';
 import { Scene } from './Scene';
 
 interface Props {
@@ -25,12 +26,17 @@ export function LearnMode({ problem, input, onFinished, onPractice }: Props) {
   const [k, setK] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
+  /** The move being animated from trace[k] to trace[k + 1]. */
+  const [flying, setFlying] = useState<DragMove | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const last = trace.length - 1;
   const step = trace[Math.min(k, last)];
+  const flyMs = 700 / speed;
 
   useEffect(() => {
     setK(0);
     setPlaying(false);
+    setFlying(null);
   }, [trace]);
 
   useEffect(() => {
@@ -40,18 +46,55 @@ export function LearnMode({ problem, input, onFinished, onPractice }: Props) {
     }
   }, [k, last, onFinished]);
 
+  /** The drag move that turns trace[i] into trace[i + 1], preferring a real drag over a tap. */
+  const moveAt = useCallback(
+    (i: number): DragMove | null => {
+      if (!problem.drag || i >= last) return null;
+      const action = trace[i + 1].action;
+      const moves = problem.drag.moves(trace[i].state).filter((m) => m.action === action);
+      return moves.find((m) => m.from !== TAP) ?? moves[0] ?? null;
+    },
+    [problem, trace, last],
+  );
+
+  /** Step forward one move, animating the tile first when the problem is drag-based. */
+  const advance = useCallback(() => {
+    if (flying) return;
+    setK((x) => {
+      if (x >= last) return x;
+      const m = moveAt(x);
+      if (!m) return x + 1;
+      setFlying(m);
+      return x;
+    });
+  }, [flying, last, moveAt]);
+
   useEffect(() => {
-    if (!playing) return;
-    const id = window.setTimeout(() => setK((x) => Math.min(x + 1, last)), 1400 / speed);
+    if (!flying) return;
+    const id = window.setTimeout(() => {
+      setFlying(null);
+      setK((x) => Math.min(x + 1, last));
+    }, flyMs);
     return () => window.clearTimeout(id);
-  }, [playing, k, speed, last]);
+  }, [flying, flyMs, last]);
+
+  useEffect(() => {
+    if (!playing || flying) return;
+    const id = window.setTimeout(advance, 900 / speed);
+    return () => window.clearTimeout(id);
+  }, [playing, flying, k, speed, advance]);
+
+  const advanceRef = useRef(advance);
+  advanceRef.current = advance;
 
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
       if (isTyping(e)) return;
-      if (e.key === 'ArrowRight') setK((x) => Math.min(x + 1, last));
-      else if (e.key === 'ArrowLeft') setK((x) => Math.max(x - 1, 0));
-      else if (e.key === ' ') {
+      if (e.key === 'ArrowRight') advanceRef.current();
+      else if (e.key === 'ArrowLeft') {
+        setFlying(null);
+        setK((x) => Math.max(x - 1, 0));
+      } else if (e.key === ' ') {
         e.preventDefault();
         setPlaying((p) => (k >= last ? false : !p));
       } else return;
@@ -63,7 +106,17 @@ export function LearnMode({ problem, input, onFinished, onPractice }: Props) {
 
   const go = (x: number) => {
     setPlaying(false);
+    setFlying(null);
     setK(Math.max(0, Math.min(last, x)));
+  };
+
+  const dragUI: DragUI = {
+    enabled: !!problem.drag,
+    selected: null,
+    hover: null,
+    dragging: null,
+    glowFrom: flying && flying.from !== TAP ? flying.from : null,
+    glowTo: flying ? flying.to : null,
   };
 
   const finished = k >= last;
@@ -71,7 +124,14 @@ export function LearnMode({ problem, input, onFinished, onPractice }: Props) {
   return (
     <div className="mode-grid">
       <div className="stage">
-        <Scene layers={problem.scene(step.state)} />
+        <DragContext.Provider value={dragUI}>
+          <div className="drag-stage learn-stage" ref={stageRef}>
+            <Scene layers={problem.scene(step.state)} />
+            {flying && flying.from !== TAP && (
+              <DemoGhost key={`${k}:${flying.from}`} root={stageRef} from={flying.from} to={flying.to} once durationMs={flyMs} />
+            )}
+          </div>
+        </DragContext.Provider>
         <div className={`caption${finished ? ' caption-done' : ''}`}>
           <div className="caption-step">
             {t(ui.step)} {k} / {last}
@@ -94,7 +154,7 @@ export function LearnMode({ problem, input, onFinished, onPractice }: Props) {
           >
             {playing ? '⏸' : finished ? '↺' : '▶'}
           </button>
-          <button className="icon-btn" onClick={() => go(k + 1)} disabled={finished} title={t(ui.next)} aria-label={t(ui.next)}>
+          <button className="icon-btn" onClick={() => { setPlaying(false); advance(); }} disabled={finished} title={t(ui.next)} aria-label={t(ui.next)}>
             ▶
           </button>
           <button className="icon-btn" onClick={() => go(last)} disabled={finished} title={t(ui.last)} aria-label={t(ui.last)}>
