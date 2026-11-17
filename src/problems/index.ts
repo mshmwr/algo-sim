@@ -4,6 +4,10 @@ import { buySellStock } from './buySellStock';
 import { containerWater } from './containerWater';
 import { dailyTemperatures } from './dailyTemperatures';
 import { evalRPN } from './evalRPN';
+import { minStack } from './minStack';
+import { generateParentheses } from './generateParentheses';
+import { carFleet } from './carFleet';
+import { largestRectangle } from './largestRectangle';
 import { findMinRotated } from './findMinRotated';
 import { longestSubstring } from './longestSubstring';
 import { charReplacement } from './charReplacement';
@@ -30,8 +34,12 @@ export const PROBLEMS: Problem[] = [
   minWindow,
   slidingWindowMax,
   validParentheses,
+  minStack,
   evalRPN,
+  generateParentheses,
   dailyTemperatures,
+  carFleet,
+  largestRectangle,
   binarySearch,
   findMinRotated,
 ];
